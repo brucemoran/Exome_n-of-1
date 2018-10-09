@@ -16,12 +16,13 @@ From:centos:centos7.4.1708
     yum -y install git wget bzip2 unzip which emacs
 
     #language and libraries
-    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ glibc-devel make cmake ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre pcre-devel
+    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ glibc-devel make ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI perl-core lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre-devel libtool openssl-devel libxml2-devel mysql-devel netcdf-devel tcl-devel tk-devel readline readline-devel pcre pcre-devel libcurl libcurl-devel
 
     #libclas and libatlas aren't put in the right places
-    ln -s /usr/lib64/atlas/libtatlas.so /usr/lib64/libatlas.so
-    ln -s /usr/lib64/atlas/libsatlas.so /usr/lib64/libcblas.so
+    ln -sf /usr/lib64/atlas/libtatlas.so /usr/lib64/libatlas.so
+    ln -sf /usr/lib64/atlas/libsatlas.so /usr/lib64/libcblas.so
 
+    ##python 3.6
     yum -y install https://centos7.iuscommunity.org/ius-release.rpm
     yum -y install python36u python36u-pip python36u-devel
     pip3.6 install --upgrade pip
@@ -34,10 +35,23 @@ From:centos:centos7.4.1708
     ##see: https://www.sylabs.io/guides/2.5/user-guide/environment_and_metadata.html
     echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> $SINGULARITY_ENVIRONMENT
 
-    ##R
-    #required libs
-    yum -y install readline readline-devel pcre pcre-devel libcurl libcurl-devel
+    ##setting more that LANG locale is an issue for several tools
+    ##https://github.com/CentOS/sig-cloud-instance-images/issues/71
+    localedef -i en_US -f UTF-8 en_US.UTF-8
+    echo -e "LANGUAGE="C"\nLC_ALL="en_US.utf8"" >> /etc/locale.conf
+    echo 'export LANG=en_US.UTF-8' >> $SINGULARITY_ENVIRONMENT
+    echo 'export LANGUAGE=C' >> $SINGULARITY_ENVIRONMENT
+    echo 'export LC_ALL=C' >> $SINGULARITY_ENVIRONMENT
+    echo 'export LC_CTYPE=C' >> $SINGULARITY_ENVIRONMENT
 
+    ##cmake
+    wget https://cmake.org/files/v3.12/cmake-3.12.3.tar.gz
+    tar xf cmake-3.12.3.tar.gz
+    cd cmake-3.12.3
+    ./bootstrap && make && make install
+    cd /usr/local/src
+
+    ##R
     #source
     wget https://cran.rstudio.com/src/base/R-3/R-3.5.1.tar.gz
     tar xf R-3.5.1.tar.gz
@@ -48,10 +62,8 @@ From:centos:centos7.4.1708
 
     #packages
     R --slave -e 'install.packages("BiocManager", repos="https://cloud.r-project.org/")'
-    R --slave -e 'lapply(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"),function(f){library("BiocManager"); BiocManager::install(f,update=TRUE,ask=FALSE)})'
-
-    wget https://github.com/mskcc/facets/archive/v0.5.14.tar.gz
-    R CMD INSTALL v0.5.14.tar.gz
+    R --slave -e 'library("BiocManager"); lapply(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"), function(f){ BiocManager::install(f, dependencies=TRUE, update=FALSE, ask=FALSE)})'
+    R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
 
     cd /usr/local/src
 
@@ -62,15 +74,6 @@ From:centos:centos7.4.1708
     ##required installs
     yum install -y perl-CPAN perl-IO-Socket-SSL perl-Archive-Any perl-YAML perl-CPAN-Meta perl-Digest-MD5 perl-App-cpanminus perl-local-lib openssl-devel
     cpanm --force --local-lib "/usr/local" ExtUtils::MakeMaker Module::Build
-
-
-    ##setting more that LANG locale is an issue for several tools
-    ##https://github.com/CentOS/sig-cloud-instance-images/issues/71
-    localedef -i en_US -f UTF-8 en_US.UTF-8
-    echo -e "LANGUAGE="C"\nLC_ALL="en_US.utf8"" >> /etc/locale.conf
-    echo 'export LANG=en_US.UTF-8' >> $SINGULARITY_ENVIRONMENT
-    echo 'export LANGUAGE=C' >> $SINGULARITY_ENVIRONMENT
-    echo 'export LC_ALL=en_US.utf8' >> $SINGULARITY_ENVIRONMENT
 
     ##https://github.com/CHRUdeLille/vep_containers/blob/master/92/Singularity.92
     cd /usr/local/src
@@ -136,9 +139,10 @@ From:centos:centos7.4.1708
     tar xf v3.0.tar.gz
     cd cramtools-3.0/
     chmod a+x cramtools-3.0.jar
-    mv cramtools-3.0.jar /usr/local/bin
-    echo -e "#! /bin/bash\nexec java -jar /data/genome/reference/hg19/refGene/cramtools-3.0/cramtools-3.0.jar "$@"" > /usr/local/bin/cramtools
+    mv cramtools-3.0.jar /usr/local/lib
+    echo -e "#! /bin/bash\nexec java -jar /usr/local/lib/cramtools-3.0.jar "$@"" > /usr/local/bin/cramtools
     chmod a+x /usr/local/bin/cramtools
+    cd /usr/local/src
 
     #picard
     wget https://github.com/broadinstitute/picard/releases/download/2.18.9/picard.jar -O /usr/local/lib/picard.jar
