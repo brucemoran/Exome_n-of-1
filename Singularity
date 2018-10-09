@@ -104,7 +104,7 @@ From:centos:centos7.4.1708
     chmod u+x *.pl
     PERL5LIB=$PERL5LIB:/usr/local/src/bioperl-live-release-1-6-924:/usr/local/src/ensembl-vep
     echo 'export PERL5LIB' >> $SINGULARITY_ENVIRONMENT
-    perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB
+    perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB --ASSEMBLY "hg19"
     ln -s /usr/local/src/ensembl-vep/vep /usr/local/bin/
 
     #samtools
