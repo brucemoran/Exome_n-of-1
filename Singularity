@@ -67,6 +67,8 @@ From:centos:centos7.4.1708
     R --slave -e 'library("BiocManager"); lapply(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"), function(f){ BiocManager::install(f, dependencies=TRUE, update=FALSE, ask=FALSE)})'
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
 
+    ##snp-pileup for facets
+    g++ -std=c++11 /usr/local/lib64/R/library/facets/extcode/snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
     cd /usr/local/src
 
     #multiqc
@@ -114,7 +116,7 @@ From:centos:centos7.4.1708
 
     perl ./INSTALL.pl --AUTO a --NO_UPDATE --NO_HTSLIB
     ln -s /usr/local/src/ensembl-vep/vep /usr/local/bin/
- 
+
     #samtools
     wget https://github.com/samtools/samtools/releases/download/1.8/samtools-1.8.tar.bz2
     tar xf samtools-1.8.tar.bz2
