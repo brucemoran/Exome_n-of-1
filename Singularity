@@ -67,10 +67,6 @@ From:centos:centos7.4.1708
     R --slave -e 'library("BiocManager"); lapply(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"), function(f){ BiocManager::install(f, dependencies=TRUE, update=FALSE, ask=FALSE)})'
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
 
-    ##snp-pileup for facets
-    g++ -std=c++11 /usr/local/lib64/R/library/facets/extcode/snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
-    cd /usr/local/src
-
     #multiqc
     pip3.6 install multiqc
 
@@ -142,6 +138,12 @@ From:centos:centos7.4.1708
     ./configure --prefix=/usr/local
     make
     make install
+    cd /usr/local/src
+
+    ##snp-pileup for facets
+    cd /usr/local/lib64/R/library/facets/extcode/
+    ln -s /usr/local/src/htslib/htslib/*.h /usr/local/src/htslib/
+    g++ -std=c++11 snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
     cd /usr/local/src
 
     #cramtools
