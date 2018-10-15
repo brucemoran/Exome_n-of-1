@@ -16,7 +16,7 @@ From:centos:centos7.4.1708
     yum -y install git wget bzip2 unzip which emacs
 
     #language and libraries
-    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ glibc-devel make ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI perl-core lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre-devel libtool openssl-devel libxml2-devel mysql-devel netcdf-devel tcl-devel tk-devel readline readline-devel pcre pcre-devel libcurl libcurl-devel
+    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ glibc-devel make ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI perl-core lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre-devel libtool openssl-devel libxml2-devel mysql-devel tcl-devel tk-devel readline readline-devel pcre pcre-devel libcurl libcurl-devel
 
     #libclas and libatlas aren't put in the right places
     ln -sf /usr/lib64/atlas/libtatlas.so /usr/lib64/libatlas.so
@@ -27,6 +27,8 @@ From:centos:centos7.4.1708
     yum -y install python36u python36u-pip python36u-devel
     pip3.6 install --upgrade pip
     pip3.6 install --upgrade setuptools
+    pip3.6 install netcdf4
+    yum -y install netcdf-devel
 
     mkdir -p /usr/local/src
     cd /usr/local/src
@@ -104,7 +106,13 @@ From:centos:centos7.4.1708
     chmod u+x *.pl
     PERL5LIB=$PERL5LIB:/usr/local/src/bioperl-live-release-1-6-924:/usr/local/src/ensembl-vep
     echo 'export PERL5LIB' >> $SINGULARITY_ENVIRONMENT
-    perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB --ASSEMBLY "hg19"
+
+    ##NB on this install NO local cache is installed due to high memory cost and bloating of Singularity image therefore
+    ##to unlock this and create a .simg with cache, uncomment next line and comment one after
+
+    # perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB --ASSEMBLY "GRCh37"
+
+    perl ./INSTALL.pl --AUTO a --NO_UPDATE --NO_HTSLIB
     ln -s /usr/local/src/ensembl-vep/vep /usr/local/bin/
 
     #samtools
@@ -207,7 +215,6 @@ From:centos:centos7.4.1708
     tar xf v1.0.7.tar.gz
     cd lancet-1.0.7
     make
-    make install
     ln -s /usr/local/src/lancet-1.0.7/lancet /usr/local/bin/
     cd /usr/local/src
 
