@@ -6,11 +6,11 @@ options(scipen=999)
 options(stringAsFactors=FALSE)
 
 ##arguments
-args <- commandArgs(trailingOnly = TRUE)
-DICTFILE <- args[1]
-CGCBED <- args[2]
-TAG <- tag <- args[3]
-FUNCTIONS <- args[4]
+argsIn <- commandArgs(trailingOnly = TRUE)
+DICTFILE <- argsIn[1]
+CGCBED <- argsIn[2]
+TAG <- tag <- argsIn[3]
+FUNCTIONS <- argsIn[4]
 
 ##set and load
 source(FUNCTIONS)
@@ -97,6 +97,7 @@ for(x in 1:length(CGCList)){
     break;
   }
 }
+
 for(x in 1:length(samples)){
   if(length(CGCList[[x]])>0){
     CGCDFb <- as.data.frame(CGCList[[x]])
@@ -115,7 +116,6 @@ for(x in 1:length(samples)){
 sqn <- as.vector(CGCDF[,1])
 sqn[sqn=="X"] <- 23
 sqn[sqn=="Y"] <- 24
-
 CGCDF$seqnames <- sqn
 
 ##to add to chr to inc for linear plot
@@ -126,7 +126,12 @@ cumSumAdd <- unlist(apply(CGCDF,1,function(x){
           return(cumSumOff)}))
 
 ##findOverlaps of all samples in list, write overlaps table out
-CGCDFsampleOverlap <- GRsampleOverlap(facetsList)
+if(length(facetsList) > 1){
+  CGCDFsampleOverlap <- GRsampleOverlap(facetsList)
+}
+if(length(facetsList) ==1){
+  CGCDFsampleOverlap <- facetsList
+}
 
 ##max CNA for plot
 CNAmaxd <- CGCDF$Total_Copy_Number
@@ -154,7 +159,7 @@ plotDF <- data.frame(row.names=seq(from=1,to=dim(CGCDF)[1],by=1),
                      sample=unlist(CGCDF$sampleID))
 
 ##assign output
-write.table(plotDFsampleOverlap, file=paste0(TAG,".facets_consensus.CGC.tab"), quote=FALSE,sep="\t",col=TRUE)
+write.table(CGCDFsampleOverlap, file=paste0(TAG,".facets_consensus.CGC.tab"), quote=FALSE,sep="\t",col=TRUE)
 
 ##plot
 ggplot() +
