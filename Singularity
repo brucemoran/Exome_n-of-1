@@ -208,11 +208,11 @@ From:centos:centos7.4.1708
     #manta, strelka2
     wget https://github.com/Illumina/manta/releases/download/v1.4.0/manta-1.4.0.centos6_x86_64.tar.bz2
     tar xf manta-1.4.0.centos6_x86_64.tar.bz2
-    ln -s /usr/local/src/manta-1.4.0.centos6_x86_64/bin/configManta.py /usr/local/bin/configManta.py
+    echo 'export PATH=$PATH:/usr/local/src/manta-1.4.0.centos6_x86_64/bin' >> $SINGULARITY_ENVIRONMENT
 
     wget https://github.com/Illumina/strelka/releases/download/v2.9.9/strelka-2.9.9.centos6_x86_64.tar.bz2
     tar xf strelka-2.9.9.centos6_x86_64.tar.bz2
-    ln -s /usr/local/src/strelka-2.9.9.centos6_x86_64/bin/*py /usr/local/bin/
+    echo 'export PATH=$PATH:/usr/local/src/strelka-2.9.9.centos6_x86_64/bin' >> $SINGULARITY_ENVIRONMENT
 
     #lancet
     wget https://github.com/nygenome/lancet/archive/v1.0.7.tar.gz
