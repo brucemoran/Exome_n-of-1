@@ -62,13 +62,14 @@ From:centos:centos7.4.1708
     ./configure --with-x=no --prefix=/usr/local/
     make
     make install
-    rm R-3.5.1.tar.gz
 
     #packages
     R --slave -e 'install.packages("BiocManager", repos="https://cloud.r-project.org/")'
     R --slave -e 'library("BiocManager"); lapply(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"), function(f){ BiocManager::install(f, dependencies=TRUE, update=FALSE, ask=FALSE)})'
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
-
+    cd /usr/local/src
+    rm R-3.5.1.tar.gz
+    
     #multiqc
     pip3.6 install multiqc
 
@@ -235,7 +236,7 @@ From:centos:centos7.4.1708
     ln -s /usr/local/src/lancet-1.0.7/lancet /usr/local/bin/
     cd /usr/local/src
     rm v1.0.7.tar.gz
-    
+
     #msisensor
     git clone https://github.com/ding-lab/msisensor.git
     cd msisensor
