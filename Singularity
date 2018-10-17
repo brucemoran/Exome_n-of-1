@@ -34,7 +34,7 @@ From:centos:centos7.4.1708
     cd /usr/local/src
 
     ##define env vars via S..._E... env var when in post
-    ##see: https://www.sylabs.io/guides/2.5/user-guide/environment_and_metadata.html
+    ##see https://www.sylabs.io/guides/2.5/user-guide/environment_and_metadata.html
     echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> $SINGULARITY_ENVIRONMENT
 
     ##setting more that LANG locale is an issue for several tools
