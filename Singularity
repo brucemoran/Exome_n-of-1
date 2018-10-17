@@ -53,7 +53,6 @@ From:centos:centos7.4.1708
     cd cmake-3.12.3
     ./bootstrap && make && make install
     cd /usr/local/src
-    rm cmake-3.12.3.tar.gz
 
     ##R
     #source
