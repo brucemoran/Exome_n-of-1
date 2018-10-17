@@ -124,7 +124,6 @@ From:centos:centos7.4.1708
     make
     make install
     cd /usr/local/src
-    rm samtools-1.8.tar.bz2
 
     #bcftools
     wget https://github.com/samtools/bcftools/releases/download/1.8/bcftools-1.8.tar.bz2
@@ -134,7 +133,6 @@ From:centos:centos7.4.1708
     make
     make install
     cd /usr/local/src
-    rm bcftools-1.8.tar.bz2
 
     #htslib
     wget https://github.com/samtools/htslib/releases/download/1.8/htslib-1.8.tar.bz2
@@ -144,7 +142,6 @@ From:centos:centos7.4.1708
     make
     make install
     cd /usr/local/src
-    rm htslib-1.8.tar.bz2
 
     ##snp-pileup for facets
     cd /usr/local/lib64/R/library/facets/extcode/
@@ -161,7 +158,6 @@ From:centos:centos7.4.1708
     echo -e "#! /bin/bash\nexec java -jar /usr/local/lib/cramtools-3.0.jar "$@"" > /usr/local/bin/cramtools
     chmod a+x /usr/local/bin/cramtools
     cd /usr/local/src
-    rm v3.0.tar.gz
 
     #picard
     wget https://github.com/broadinstitute/picard/releases/download/2.18.9/picard.jar -O /usr/local/lib/picard.jar
@@ -178,7 +174,6 @@ From:centos:centos7.4.1708
     mv *.pl /usr/local/bin
     mv libbwa.a /usr/local/lib
     cd /usr/local/src
-    rm bwa-0.7.17.tar.bz2
 
     #fastqc
     wget https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.7.zip
@@ -186,7 +181,6 @@ From:centos:centos7.4.1708
     chmod a+x /usr/local/src/FastQC/fastqc
     ln -s /usr/local/src/FastQC/fastqc /usr/local/bin/fastqc
     cd /usr/local/src
-    rm fastqc_v0.11.7.zip
 
     #BBMap
     wget "https://downloads.sourceforge.net/project/bbmap/BBMap_38.11.tar.gz?r=https%3A%2F%2Fsourceforge.net%2Fprojects%2Fbbmap%2Ffiles%2FBBMap_38.11.tar.gz%2Fdownload&ts=1531223392" -O BBMap_38.11.tar.gz
@@ -194,7 +188,6 @@ From:centos:centos7.4.1708
     cd bbmap
     ln -s /usr/local/src/bbmap/*.sh /usr/local/bin/
     cd /usr/local/src
-    rm BBMap_38.11.tar.gz
 
     #gatk
     wget https://github.com/broadinstitute/gatk/releases/download/4.0.6.0/gatk-4.0.6.0.zip
@@ -205,7 +198,6 @@ From:centos:centos7.4.1708
     mv gatk /usr/local/bin
     mv gatk-completion.sh /usr/local/bin
     cd /usr/local/src
-    rm gatk-4.0.6.0.zip
 
     #pigz
     wget https://github.com/madler/pigz/archive/v2.4.tar.gz
@@ -215,18 +207,15 @@ From:centos:centos7.4.1708
     mv pigz /usr/local/bin
     mv unpigz /usr/local/bin
     cd /usr/local/src
-    rm v2.4.tar.gz
 
     #manta, strelka2
     wget https://github.com/Illumina/manta/releases/download/v1.4.0/manta-1.4.0.centos6_x86_64.tar.bz2
     tar xf manta-1.4.0.centos6_x86_64.tar.bz2
     echo 'export PATH=$PATH:/usr/local/src/manta-1.4.0.centos6_x86_64/bin' >> $SINGULARITY_ENVIRONMENT
-    rm manta-1.4.0.centos6_x86_64.tar.bz2
 
     wget https://github.com/Illumina/strelka/releases/download/v2.9.9/strelka-2.9.9.centos6_x86_64.tar.bz2
     tar xf strelka-2.9.9.centos6_x86_64.tar.bz2
     echo 'export PATH=$PATH:/usr/local/src/strelka-2.9.9.centos6_x86_64/bin' >> $SINGULARITY_ENVIRONMENT
-    rm strelka-2.9.9.centos6_x86_64.tar.bz2
 
     #lancet
     wget https://github.com/nygenome/lancet/archive/v1.0.7.tar.gz
@@ -235,7 +224,6 @@ From:centos:centos7.4.1708
     make
     ln -s /usr/local/src/lancet-1.0.7/lancet /usr/local/bin/
     cd /usr/local/src
-    rm v1.0.7.tar.gz
 
     #msisensor
     git clone https://github.com/ding-lab/msisensor.git
