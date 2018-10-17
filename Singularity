@@ -69,7 +69,7 @@ From:centos:centos7.4.1708
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
     cd /usr/local/src
     rm R-3.5.1.tar.gz
-    
+
     #multiqc
     pip3.6 install multiqc
 
