@@ -116,11 +116,11 @@ From:centos:centos7.4.1708
     perl ./INSTALL.pl --AUTO a --NO_UPDATE --NO_HTSLIB
     ln -s /usr/local/src/ensembl-vep/vep /usr/local/bin/
     cd /usr/local/src
-    
+
     #samtools
     wget https://github.com/samtools/samtools/releases/download/1.8/samtools-1.8.tar.bz2
     tar xf samtools-1.8.tar.bz2
-    samtools-1.8.tar.bz2
+    rm samtools-1.8.tar.bz2
     cd samtools-1.8
     ./configure --prefix=/usr/local/
     make
