@@ -107,16 +107,16 @@ From:centos:centos7.4.1708
     chmod u+x *.pl
     PERL5LIB=$PERL5LIB:/usr/local/src/bioperl-live-release-1-6-924:/usr/local/src/ensembl-vep
     echo 'export PERL5LIB' >> $SINGULARITY_ENVIRONMENT
-    cd /usr/local/src
 
     ##NB on this install NO local cache is installed due to high memory cost and bloating of Singularity image therefore
     ##to unlock this and create a .simg with cache, uncomment next line and comment one after
 
-    # perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB --ASSEMBLY "GRCh37"
+    ##perl ./INSTALL.pl --AUTO ac --CACHEDIR "/usr/local/src/ensembl-vep/cache" --SPECIES "homo_sapiens_merged" --NO_UPDATE --NO_HTSLIB --ASSEMBLY "GRCh37"
 
     perl ./INSTALL.pl --AUTO a --NO_UPDATE --NO_HTSLIB
     ln -s /usr/local/src/ensembl-vep/vep /usr/local/bin/
-
+    cd /usr/local/src
+    
     #samtools
     wget https://github.com/samtools/samtools/releases/download/1.8/samtools-1.8.tar.bz2
     tar xf samtools-1.8.tar.bz2
