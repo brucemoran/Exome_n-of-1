@@ -67,7 +67,7 @@ From:centos:centos7.4.1708
     #packages
     R --slave -e 'install.packages("BiocManager", repos="https://cloud.r-project.org/")'
     R --slave -e 'BiocManager::install("packrat")'
-    R --slave -e 'library("BiocManager"); library("packrat"); allpack <- packrat:::recursivePackageDependencies(c("devtools", "ensemblVEP", "org.Hs.eg.db", "customProDB", "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table", "QDNAseq", "QDNAseq.hg19", "Biobase", "EnsDb.Hsapiens.v75", "ensembldb", "SNPchip"), lib.loc=.libPaths()); BiocManager::install(allpack, dependencies=FALSE, update=FALSE, ask=FALSE)'
+    R --slave -e 'library("BiocManager"); library("packrat"); installpack <- c("devtools", "org.Hs.eg.db",  "GenomicRanges", "tidyverse", "bio3d", "plyr", "pheatmap", "data.table",  "Biobase",  "ensembldb"); allpack <- packrat:::recursivePackageDependencies(installpack, lib.loc=.libPaths()); BiocManager::install(c(installpack,allpack), dependencies=FALSE, update=FALSE, ask=FALSE); BiocManager::install(c("ensemblVEP", "SNPchip", "QDNAseq", "QDNAseq.hg19", "customProDB", "EnsDb.Hsapiens.v75"), dependencies=TRUE, update=FALSE, ask=FALSE)'
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
     cd /usr/local/src
 
