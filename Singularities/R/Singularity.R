@@ -62,12 +62,6 @@ From:centos:centos7.4.1708
     R --slave -e 'library("devtools"); devtools::install_github("mskcc/pctGCdata"); devtools::install_github("mskcc/facets", build_vignettes = FALSE)'
     cd /usr/local/src
 
-    ##snp-pileup for facets
-    cd /usr/local/lib64/R/library/facets/extcode/
-    ln -s /usr/local/src/htslib/htslib/*.h /usr/local/src/htslib/
-    g++ -std=c++11 snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
-    cd /usr/local/src
-
     #NextFlow
     curl -s https://get.nextflow.io | bash
     mv nextflow /usr/local/bin/
