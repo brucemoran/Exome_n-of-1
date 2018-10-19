@@ -90,8 +90,8 @@ From:centos:centos7.4.1708
     cd /usr/local/src
 
     ##snp-pileup for facets
-    https://github.com/mskcc/facets/blob/master/inst/extcode/snp-pileup.cpp
-    https://github.com/mskcc/facets/blob/master/inst/extcode/snp-pileup.h
+    wget https://raw.githubusercontent.com/mskcc/facets/master/inst/extcode/snp-pileup.cpp
+    wget https://raw.githubusercontent.com/mskcc/facets/master/inst/extcode/snp-pileup.h
     g++ -std=c++11 snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
     cd /usr/local/src
 
