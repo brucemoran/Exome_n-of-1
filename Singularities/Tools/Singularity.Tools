@@ -81,14 +81,15 @@ From:centos:centos7.4.1708
     wget https://github.com/samtools/htslib/releases/download/1.8/htslib-1.8.tar.bz2
     tar xf htslib-1.8.tar.bz2
     rm htslib-1.8.tar.bz2
-    cd htslib-1.8
+    mv htslib-1.8 htslib
+    cd htslib
     ./configure --prefix=/usr/local
     make
     make install
     cd /usr/local/src
 
     ##snp-pileup for facets
-    cd /usr/local/lib64/R/library/facets/extcode/
+    cd /usr/local/src/facets/inst/extcode/
     ln -s /usr/local/src/htslib/htslib/*.h /usr/local/src/htslib/
     g++ -std=c++11 snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
     cd /usr/local/src
