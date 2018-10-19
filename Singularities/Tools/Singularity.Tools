@@ -86,11 +86,12 @@ From:centos:centos7.4.1708
     ./configure --prefix=/usr/local
     make
     make install
+    ln -s /usr/local/src/htslib/htslib/*.h /usr/local/src/htslib/
     cd /usr/local/src
 
     ##snp-pileup for facets
-    cd /usr/local/src/facets/inst/extcode/
-    ln -s /usr/local/src/htslib/htslib/*.h /usr/local/src/htslib/
+    https://github.com/mskcc/facets/blob/master/inst/extcode/snp-pileup.cpp
+    https://github.com/mskcc/facets/blob/master/inst/extcode/snp-pileup.h
     g++ -std=c++11 snp-pileup.cpp -lhts -o /usr/local/bin/snp-pileup
     cd /usr/local/src
 
