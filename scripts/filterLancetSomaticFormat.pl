@@ -1,4 +1,4 @@
-#! /bin/perl5
+#! perl
 
 use strict;
 use warnings;
