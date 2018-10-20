@@ -1,4 +1,4 @@
-#! $(which R)
+#! R
 
 ##R script for use in Exome_n-of-1.simg.nf NextFlow
 

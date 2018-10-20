@@ -1,4 +1,4 @@
-#! /usr/local/bin/R
+#! R
 library(facets)
 argsIn <- commandArgs(trailingOnly = TRUE)
 inputCSV <- argsIn[1]

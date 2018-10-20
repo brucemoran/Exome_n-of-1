@@ -1,4 +1,4 @@
-#! $(which R)
+#! R
 
 ##load libraries
 libs <- c("EnsDb.Hsapiens.v75", "org.Hs.eg.db", "ensembldb", "tidyverse", "GenomicRanges", "bio3d", "plyr", "SNPchip")
