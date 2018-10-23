@@ -84,7 +84,9 @@ pLoad <- lapply(pIn,function(x){
 
 ##we want all CNA for which CGC annotated
 CGCList <- lapply(facetsList,function(f){
-    f[mcols(f)$n_CGC_SYMBOLs != 0 & mcols(f)$Total_Copy_Number != 2 & mcols(f)$Total_Copy_Number != 1]
+    fo1 <- f[mcols(f)$n_CGC_SYMBOLs != 0]
+    fo2 <- f[mcols(f)$Total_Copy_Number != 2 & mcols(f)$Total_Copy_Number != 1]
+    fo <- unique(c(fo1,fo2))
   })
 
 ##into dataframe
