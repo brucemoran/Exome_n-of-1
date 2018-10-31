@@ -161,6 +161,7 @@ From:centos:centos7.4.1708
 
     #manta, strelka2
     ln -s /usr/lib/gcc/x86_64-redhat-linux/4.8.2/* /usr/local/lib/
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
     wget https://github.com/Illumina/manta/releases/download/v1.4.0/manta-1.4.0.centos6_x86_64.tar.bz2
     tar xf manta-1.4.0.centos6_x86_64.tar.bz2
     rm manta-1.4.0.centos6_x86_64.tar.bz2
