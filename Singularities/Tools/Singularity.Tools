@@ -16,7 +16,10 @@ From:centos:centos7.4.1708
     yum -y install git wget bzip2 unzip which emacs
 
     #language and libraries
-    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ glibc-devel make ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI perl-core lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre-devel libtool openssl-devel libxml2-devel mysql-devel tcl-devel tk-devel readline readline-devel pcre pcre-devel libcurl libcurl-devel
+    yum -y install java-1.8.0-openjdk-devel gcc gcc-c++ libstdc++-static glibc-devel make ncurses ncurses-devel zlib-devel libbzip2-devel bzip2-devel xz-devel perl-DBI perl-core lapack-devel atlas-devel freetype freetype-devel libpng-devel readline-devel pcre-devel libtool openssl-devel libxml2-devel mysql-devel tcl-devel tk-devel readline readline-devel pcre pcre-devel libcurl libcurl-devel
+
+    export CC=$(which cc)
+    export CXX=$(which c++)
 
     #libclas and libatlas aren't put in the right places
     ln -sf /usr/lib64/atlas/libtatlas.so /usr/lib64/libatlas.so
@@ -36,6 +39,16 @@ From:centos:centos7.4.1708
     ##define env vars via S..._E... env var when in post
     ##see https://www.sylabs.io/guides/2.5/user-guide/environment_and_metadata.html
     echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib' >> $SINGULARITY_ENVIRONMENT
+
+    wget https://github.com/Illumina/strelka/archive/v2.9.9.tar.gz
+    tar xf v2.9.9.tar.gz
+    rm v2.9.9.tar.gz
+    mkdir -p strelka-2.9.9/build && cd strelka-2.9.9/build
+    ../configure
+    make -C /usr/local/src/strelka-2.9.9/build
+    ##NB this installs to /usr/local/*
+    make install
+    echo 'export PATH=$PATH:/usr/local/src/strelka-2.9.9/build/bin' >> $SINGULARITY_ENVIRONMENT
 
     ##setting more that LANG locale is an issue for several tools
     ##https://github.com/CentOS/sig-cloud-instance-images/issues/71
@@ -160,24 +173,12 @@ From:centos:centos7.4.1708
     cd /usr/local/src
 
     #manta, strelka2
-    ln -s /usr/lib/gcc/x86_64-redhat-linux/4.8.2/* /usr/local/lib/
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib
     wget https://github.com/Illumina/manta/releases/download/v1.4.0/manta-1.4.0.centos6_x86_64.tar.bz2
     tar xf manta-1.4.0.centos6_x86_64.tar.bz2
     rm manta-1.4.0.centos6_x86_64.tar.bz2
     echo 'export PATH=$PATH:/usr/local/src/manta-1.4.0.centos6_x86_64/bin' >> $SINGULARITY_ENVIRONMENT
     rm -rf manta-1.4.0.centos6_x86_64/share/demo
-
-    wget https://github.com/Illumina/strelka/archive/v2.9.9.tar.gz
-    tar xf v2.9.9.tar.gz
-    rm v2.9.9.tar.gz
-    mkdir -p strelka-2.9.9/build && cd strelka-2.9.9/build
-    ../configure
-    make -C /usr/local/src/strelka-2.9.9/build
-    ##NB this installs to /usr/local/*
-    make install
-    echo 'export PATH=$PATH:/usr/local/src/strelka-2.9.9/build/bin' >> $SINGULARITY_ENVIRONMENT
-
 
     #lancet
     wget https://github.com/nygenome/lancet/archive/v1.0.7.tar.gz
