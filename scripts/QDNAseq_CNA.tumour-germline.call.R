@@ -85,4 +85,4 @@ shortSeg <- segments %>% arrange(chr,start) %>%
     select(-segmentNo)
 
 # write .seg file for IGV
-write.table(data.frame(sample=sub(".*(\\d{4}T).*", "\\1", bam), shortSeg), file=bed, quote=F, row.names = F, sep="\t")
+write.table(data.frame(sample=sub(".*(\\d{4}T).*", "\\1", tumourbam), shortSeg), file=bed, quote=F, row.names = F, sep="\t")
