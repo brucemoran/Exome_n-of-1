@@ -1,7 +1,7 @@
 #! R
 
 ##load libraries
-libs <- c("EnsDb.Hsapiens.v75", "org.Hs.eg.db", "ensembldb", "tidyverse", "GenomicRanges", "bio3d", "plyr", "SNPchip")
+libs <- c("EnsDb.Hsapiens.v75", "org.Hs.eg.db", "ensembldb", "tidyverse", "GenomicRanges", "bio3d", "plyr")
 for(x in 1:length(libs)){
   if(!libs[x] %in% rownames(installed.packages())){
     library("BiocManager")
@@ -95,9 +95,9 @@ seqlengthsDF <- function(inSeqs, dictseqs){
   ##find those chromosomes in inSeqs
   seqlengths <- seqlengths[is.element(seqlengths[,1],unique(as.vector(inSeqs))),]
 
-  #centromeres fro SNPchip packages function
+  #centromeres from SNPchip packages function
   seqlengths$centromere <- unlist(lapply(seqlengths[,1],function(seq){
-    mean(centromere(paste0("chr",seq),"hg19")[1])}))
+    centromere(paste0("chr", seq),"hg19")[1]}))
 
   ##non-numeric chr IDs are numeric as rownames!
   ##need to output a table to convert between inSeqs and newSeqs
@@ -124,4 +124,20 @@ GRsampleOverlap <- function(facetsList) {
       list1over <- unique(list1n[queryHits(overlaps)])
       listxover <- unique(facetsList[[x]][subjectHits(overlaps),c(10:12)])
   }
+}
+
+url <- paste0("http://hgdownload.cse.ucsc.edu/goldenpath/hg19/database/cytoBand.txt.gz")
+temp <- tempfile()
+download.file(url, temp)
+centroms <- as_tibble(read.table(temp))
+
+centromere <- function(chr, HGVersion, centros=NULL){
+  if(is.null(centros)){
+    centros <- centroms
+  }
+  centrout <- centros %>% dplyr::filter(V5 %in% "acen") %>%
+                          dplyr::filter(V4 %in% grep("p11",V4,value=T)) %>%
+                          dplyr::filter(V1 %in% chr) %>%
+                          dplyr::select(V3) %>% unlist()
+  return(centrout)
 }
