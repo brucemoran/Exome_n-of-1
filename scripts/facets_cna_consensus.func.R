@@ -15,7 +15,7 @@ strSplitVec <- function(inVec,sepn){
 }
 
 strSplitFun <- function(input,sepn){
-  lapply(input,function(f){strsplit(f,sepn)[[1]]})
+  lapply(input,function(f){strsplit(f, sepn)[[1]]})
 }
 
 facetsJointsegsParse2GR <- function(jointsegIn, cgcGr, anno=NULL){

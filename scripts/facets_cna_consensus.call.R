@@ -12,15 +12,6 @@ CGCBED <- argsIn[2]
 TAG <- tag <- argsIn[3]
 FUNCTIONS <- argsIn[4]
 
-##if not defined, define string of input sampleIDs from vcfs
-if(is.null(argsIn[5])){
-  argsIn[5] <- dir(pattern="vcf") %>%
-               lapply(.,function(f){strsplit(f,"\\.")[[1]][1]}) %>%
-               unlist() %>%
-               unique() %>%
-               sort()
-}
-
 ##set and load
 source(FUNCTIONS)
 
