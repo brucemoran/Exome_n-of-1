@@ -18,8 +18,8 @@ source(FUNCTIONS)
 ##load Cancer Gene Census bed file
 cgc <- read.table(CGCBED)
 cgcGR <- GRanges(seqnames = cgc[,1],
-               ranges = IRanges(cgc[,2],cgc[,3]),
-               CGC_gene = cgc[,4])
+                 ranges = IRanges(cgc[,2],cgc[,3]),
+                 CGC_gene = cgc[,4])
 
 ##file pattern for input
 inList <- dir(pattern="fit_cncf-jointsegs.tab$")

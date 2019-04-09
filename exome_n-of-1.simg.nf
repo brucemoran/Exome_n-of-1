@@ -12,44 +12,49 @@ if (params.help) {
   log.info 'nextflow run exome_n-of-1.simg.nf \
               --sampleCsv "data/sample.csv" \
               --refDir "refs" \
-              --runID "name_your_run" \
-              --includeOrder "tumour_A,tumour_B"'
+              --includeOrder "tumour_A,tumour_B" \
+              --germline'
   log.info ''
   log.info 'Mandatory arguments:'
   log.info '    --sampleCsv      STRING      CSV format, headers: type ("germline" or "somatic"),sampleID,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz '
-  log.info '    --refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references; still; stuck on hg19 for several reasons;()'
-  log.info '    --runID      STRING      identifier for the run'
+  log.info '    --refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references; still; stuck on GRCh37 for several reasons=('
+  log.info ''
+  log.info 'Optional argument:'
   log.info '    --includeOrder      STRING      in final plots, use this ordering of samples (if multiple somatic); comma-separated, no spaces'
-  log.info '    --noFacets      STRING      run facets CNA or not'
+  log.info '    --germline      STRING      include germline calling with GATK4 HaplotypeCaller for all samples'
   log.info ''
   exit 1
 }
 
 /* -2: Global Variables
 */
-params.runDir = "$params.baseDir/$params.runID"
+params.runDir = "$workflow.launchDir"
 params.outDir = "$params.runDir/analysis"
 params.scriptDir = "$params.runDir/scripts"
 params.exomebed = "$params.refDir/exome.bed"
 
 /* into/set Channels
 */
-Channel.fromPath("$params.refDir/human_g1k_v37.{fasta,*.amb,*.ann,*.bwt,*.fai,*.pac,*.sa}", type: 'file')
+Channel.fromPath("$params.refDir/human_g1k_v37{.fasta,.fasta.amb,.fasta.ann,.fasta.bwt,.fasta.fai,.fasta.pac,.fasta.sa}", type: 'file')
        .flatten().collect().set { bwa_index }
 Channel.fromPath("$params.refDir/human_g1k_v37.{fasta,fasta.fai,dict}", type: 'file')
-       .flatten().collect().into { gatk_fasta; mltmet_fasta; fcts_fasta; mutect2_fasta; mantastrelka_fasta; lancet_fasta; vep_fasta }
+       .flatten().collect().into { gatk_fasta; gatkgerm_fasta; mltmet_fasta; fcts_fasta; mutect2_fasta; mantastrelka_fasta; lancet_fasta; vep_fasta; cpsrgerm_fasta }
 Channel.fromPath("$params.refDir/human_g1k_v37.dict", type: 'file')
        .flatten().collect().set { fcts_dict }
 Channel.fromPath("$params.refDir/exome.bed.interval_list", type: 'file')
-       .flatten().collect().into { gatk_exomebedintlist; mltmet_exomebedintlist; mutect2_exomebedintlist }
+       .flatten().collect().into { gatk_exomebedintlist; gatkgerm_exomebedintlist; mltmet_exomebedintlist; mutect2_exomebedintlist; cpsrgerm_exomebedintlist }
 Channel.fromPath("$params.refDir/exome.bed", type: 'file')
        .flatten().collect().into { msi_exomebed; lancet_exomebed }
 Channel.fromPath("$params.refDir/exome.bed.{gz,gz.tbi}", type: 'file')
        .flatten().collect().set { mantastrelka_exomebedgz }
-Channel.fromPath("$params.refDir/dbsnp_138.b37.excluding_sites_after_129.{vcf,vcf.idx}", type: 'file')
-       .flatten().collect().into { fcts_dbsnp; gatk_dbsnp; mutect2_dbsnp  }
-Channel.fromPath("$params.refDir/CosmicCodingMuts.v70.sorted.{vcf,vcf.idx}", type: 'file')
-       .flatten().collect().set { cosmicvcf }
+Channel.fromPath("$params.refDir/dbsnp_*.{vcf,vcf.tbi}", type: 'file')
+       .flatten().collect().into { fcts_dbsnp; gatk_dbsnp; gatkgerm_dbsnp; mutect2_dbsnp }
+Channel.fromPath("$params.refDir/KG_omni*.{vcf,vcf.tbi}", type: 'file')
+       .flatten().collect().set { gatkgerm_omniKg }
+Channel.fromPath("$params.refDir/KG_phase1*.{vcf,vcf.tbi}", type: 'file')
+       .flatten().collect().set { gatkgerm_phase1Kg }
+Channel.fromPath("$params.refDir/hapmap*.{vcf,vcf.tbi}", type: 'file')
+       .flatten().collect().set { gatkgerm_hapmap }
 Channel.fromPath("$params.refDir/COSMIC_CGC.bed", type: 'file')
        .flatten().collect().set { fcts_cosmicbed }
 Channel.fromPath("$params.refDir/msisensor_microsatellites.list", type: 'file')
@@ -61,8 +66,7 @@ Channel.fromPath("$params.refDir/mutect2_GetPileupSummaries.vcf.{gz,gz.tbi}", ty
 */
 process scrpts {
 
-  publishDir "$params.scriptDir", mode: "copy", pattern: "*[!img]"
-  publishDir "$params.containerPath", mode: "copy", pattern: "*img"
+  publishDir path: "$params.scriptDir", mode: "copy", pattern: "*"
 
   output:
   file('*') into completedmin1
@@ -101,15 +105,15 @@ Channel.fromPath("$params.sampleCsv", type: 'file')
 */
 process bbduke {
 
-  label '10_30G_cpu_mem'
+  label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/bbduk", mode: "copy", pattern: "*.txt"
+  publishDir path: "$params.outDir/$sampleID/bbduk", mode: "copy", pattern: "*.txt"
 
   input:
   set val(type), val(sampleID), file(read1), file(read2) from bbduking
 
   output:
-  val(sampleID) into completed0_0
+  file('*') into completed0_0
   set val(type), val(sampleID), file(read1), file(read2) into fastping
   set val(type), val(sampleID), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz') into bwa_memming
 
@@ -135,13 +139,13 @@ process bbduke {
   } 2>&1 | tee > $sampleID".bbduk.runstats.txt"
   """
 }
-completed0_0.subscribe { println "Completed BBDuk: " + it }
+completed0_0.subscribe { println "Completed BBDuk: " + it.toString().tokenize("/").last() }
 
 process fastp {
 
-  label '8_24G_cpu_mem'
+  label 'c8_24G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/fastp", mode: "copy", pattern: "*.html"
+  publishDir path: "$params.outDir/$sampleID/fastp", mode: "copy", pattern: "*.html"
 
   input:
   set val(type), val(sampleID), file(read1), file(read2) from fastping
@@ -161,10 +165,9 @@ completed0_1.subscribe { println "Completed Fastp: " + it }
 */
 process bwamem {
 
-  label '20_60G_cpu_mem'
+  label 'c20_60G_cpu_mem'
 
-
-  publishDir "$params.outDir/$sampleID/bwa", mode: "copy", pattern: "*[!bam]"
+  publishDir path: "$params.outDir/$sampleID/bwa", mode: "copy", pattern: "*[!bam]"
 
   input:
   set val(type), val(sampleID), file(read1), file(read2) from bwa_memming
@@ -200,10 +203,10 @@ completed1_0.subscribe { println "Completed bwa-mem: " + it }
 */
 process mrkdup {
 
-  label '40_120G_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/picard/markdup", mode: "copy", pattern: "*[!.metrics.txt]"
-  publishDir "$params.outDir/$sampleID/picard/metrics", mode: "copy", pattern: "*.metrics.txt"
+  publishDir path: "$params.outDir/$sampleID/picard/markdup", mode: "copy", pattern: "*[!.metrics.txt]"
+  publishDir path: "$params.outDir/$sampleID/picard/metrics", mode: "copy", pattern: "*.metrics.txt"
 
   input:
   set val(type), val(sampleID), file(bam), file(bai) from dup_marking
@@ -211,7 +214,7 @@ process mrkdup {
   output:
   val(sampleID) into completed1_1
   file('*md.metrics.txt') into mrkdup_multiqc
-  set val(type), val(sampleID), file('*.md.bam'), file('*.md.bam.bai') into (gatk4recaling)
+  set val(type), val(sampleID), file('*.md.bam'), file('*.md.bam.bai') into gatk4recaling
 
   script:
   """
@@ -242,9 +245,9 @@ completed1_1.subscribe { println "Completed MarkDuplicates: " + it }
 */
 process gtkrcl {
 
-  label '10_30G_cpu_mem'
+  label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/gatk4/bestpractice", mode: "copy", pattern: "*"
+  publishDir path: "$params.outDir/$sampleID/gatk4/bestpractice", mode: "copy"
 
   input:
   set val(type), val(sampleID), file(bam), file(bai) from gatk4recaling
@@ -256,6 +259,7 @@ process gtkrcl {
   val(sampleID) into completed1_2
   file('*.table') into gtkrcl_multiqc
   set val(type), val(sampleID), file('*.bqsr.bam') into (germfiltering, somafiltering)
+  set val(type), val(sampleID), file('*.bqsr.bam') into gatk_germ
 
   script:
   """
@@ -284,6 +288,116 @@ process gtkrcl {
 }
 completed1_2.subscribe { println "Completed GATK4 BaseRecalibration: " + it }
 
+/* 1.25: GATK4 Germline
+*/
+process gatkgerm {
+
+  label 'c40_120G_cpu_mem'
+
+  publishDir "$params.outDir/$type/$sampleID/gatk4/HC_germline", mode: "copy", pattern: "*"
+
+  input:
+  set val(type), val(sampleID), file(bam) from gatk_germ
+  set file(fa), file(fai), file(dict) from gatkgerm_fasta
+  set file(dbsnp), file(dbsnpidx) from gatkgerm_dbsnp
+  set file(omni1000g), file(omni1000gidx) from gatkgerm_omniKg
+  set file(mills1000g), file(mills1000gidx) from gatkgerm_phase1Kg
+  set file(hapmap), file(hapmapidx) from gatkgerm_hapmap
+  file(exomebedintlist) from gatkgerm_exomebedintlist
+
+  output:
+  val(sampleID) into completedhcgerm
+  set val(sampleID), file('*recal_filt.vcf.gz'), file('*recal_filt.vcf.gz.tbi') into germ_vcf
+
+  when:
+  params.germline
+  type == "germline"
+
+  script:
+  """
+  samtools index $bam > $bam".bai"
+  {
+  #HaplotypeCaller
+  INPUTBAM=$bam
+  OUTVCF=\$(echo \$INPUTBAM | sed 's/bam/hc.vcf/')
+  gatk --java-options ${params.full_javamem} HaplotypeCaller \
+    -R $fa \
+    -I \$INPUTBAM \
+    --dont-use-soft-clipped-bases \
+    --standard-min-confidence-threshold-for-calling 20 \
+    --dbsnp $dbsnp \
+    -O input.recal.vcf \
+    -L $exomebedintlist
+
+  gatk --java-options ${params.full_javamem} VariantRecalibrator \
+    -R $fa \
+    --variant input.recal.vcf \
+    --resource hapmap,known=false,training=true,truth=true,prior=15.0:$hapmap \
+    --resource omni,known=false,training=true,truth=false,prior=12.0:$omni1000g \
+    --resource 1000G,known=false,training=true,truth=false,prior=10.0:$hsnp1000g \
+    --resource dbsnp,known=true,training=false,truth=false,prior=2.0:$dbsnp \
+    -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an InbreedingCoeff \
+    --mode BOTH \
+    --recal-file output.recal \
+    --tranches-file output.tranches \
+    --rscript-file output.recal.plots.R
+
+  FILTVCF=\$(echo \$OUTVCF | sed 's/vcf/recal_filt.vcf/')
+  gatk --java-options ${params.full_javamem} ApplyVQSR \
+    -R $fa \
+    --variant input.recal.vcf \
+    --truth-sensitivity-filter-level 99.0 \
+    --tranches-file output.tranches \
+    --recal-file output.recal \
+    --mode BOTH \
+    --output \$FILTVCF
+
+  bgzip \$FILTVCF
+  tabix \$FILTVCF".gz"
+  } 2>&1 | tee $sampleID".GATK4_HaplotypeCaller-germline.log.txt"
+
+  """
+}
+completedhcgerm.subscribe { println "Completed GATK4 HC Variant Calling: " + it }
+
+/* 1.25: GATK4 Germline
+*/
+process cpsrgerm {
+
+  label 'c40_120G_cpu_mem'
+
+  publishDir "$params.outDir/$type/$sampleID/calls/cpsr_germline", mode: "copy", pattern: "*"
+
+  input:
+  set val(sampleID), file(vcf), file(tbi) from germ_vcf
+  set file(fa), file(fai), file(dict) from cpsrgerm_fasta
+  file(exomebedintlist) from gatkgerm_exomebedintlist
+
+  output:
+  val(sampleID) into completedcpsr
+  file('*') into cpsr_vcfs
+
+  when:
+  params.germline
+
+  script:
+  """
+  {
+    cpsr.py \
+      --input_vcf $vcf \
+      --no-docker \
+      /data/genome/reference/pcgr/GRCh37 \
+      ./ \
+      grch37 \
+      /data/genome/reference/cpsr/cpsr-0.3.0/cpsr.toml \
+      $sampleID
+
+  } 2>&1 | tee $sampleID".cpsr.log.txt"
+
+  """
+}
+completedcpsr.subscribe { println "Completed cpsr Germline Variant Reporting: " + it }
+
 /* 1.3: filter germ into a channel, index bam
 */
 process grmflt {
@@ -292,8 +406,9 @@ process grmflt {
   set val(type), val(sampleID), file(bam) from germfiltering
 
   output:
-  set val(sampleID), file(bam), file ('*.bam.bai') into (gmultimetricing, gmutect2somaticing, gfacetsomaing, gqdnaseqsomaing, gmsisensoring, gmantastrelka2ing, glanceting)
-  val(sampleID) into vcfGRaID
+  file(bam) into germbamcombine
+  file('*.bam.bai') into germbaicombine
+  set val(sampleID), file(bam), file('*.bam.bai') into gmultimetricing
 
   when:
   type == "germline"
@@ -312,7 +427,7 @@ process smaflt {
   set val(type), val(sampleID), file(bam) from somafiltering
 
   output:
-  set val(sampleID), file(bam), file ('*.bam.bai') into (multimetricing, mutect2somaticing, facetsomaing, qdnaseqsomaing, msisensoring, mantastrelka2ing, lanceting)
+  set val(sampleID), file(bam), file ('*.bam.bai') into (multimetricing, germcombine)
 
   when:
   type != "germline"
@@ -323,15 +438,36 @@ process smaflt {
   """
 }
 
+/*1.5 combine germline with somatic and unique those outputs
+*/
+process combinegs {
+
+    echo true
+
+    input:
+    set val(sampleID), file(bam), file (bai) from germcombine
+    each file(germlinebam) from germbamcombine
+    each file(germlinebai) from germbaicombine
+
+    output:
+    set val(sampleID), file(bam), file(bai), stdout, file(germlinebam), file(germlinebai) into ( mutect2somaticing, facetsomaing, qdnaseqsomaing, msisensoring, mantastrelka2ing, lanceting )
+    stdout into vcfGRaID
+
+    """
+    echo $germlinebam | perl -ane '@s=split(/\\./); print \$s[0];'
+    """
+}
+//combinesg.unique().into {  }
+
 /* 2.0: Metrics suite, this will produce an HTML report
 */
 MULTIALL = gmultimetricing.mix(multimetricing)
 
 process mltmet {
 
-  label '8_24G_cpu_mem'
+  label 'c8_24G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/metrics"
+  publishDir path: "$params.outDir/$sampleID/metrics"
 
   input:
   set val(sampleID), file(bam), file(bai) from MULTIALL
@@ -393,14 +529,14 @@ completed2_0.subscribe { println "Completed running metrics: " + it }
 */
 process fctcsv {
 
-  label '8_24G_cpu_mem'
+  label 'c8_24G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/facets"
+  publishDir path: "$params.outDir/$sampleID/facets"
 
   input:
-  set val(sampleID), file(bam), file(bai) from facetsomaing
-  set val(germlineID), file(germlinebam), file(germlinebai) from gfacetsomaing
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from facetsomaing
   set file(dbsnp), file(dbsnpidx) from fcts_dbsnp
+  file(facetsR) from facetscallscript
 
   output:
   val(sampleID) into completed2_1
@@ -409,7 +545,7 @@ process fctcsv {
 
   script:
   """
-  CSVFILE=\$(echo $bam | sed 's/bam/facets.r10.csv/')
+  CSVFILE=\$(echo $tumourbam | sed 's/bam/facets.r10.csv/')
 
   {
     snp-pileup \
@@ -418,7 +554,7 @@ process fctcsv {
       -p \
       \$CSVFILE \
       $germlinebam \
-      $bam
+      $tumourbam
 
     Rscript --vanilla $facetsR \$CSVFILE
 
@@ -431,9 +567,9 @@ completed2_1.subscribe { println "Completed facets calling: " + it }
 */
 process fctcon {
 
-  label '8_24G_cpu_mem'
+  label 'c8_24G_cpu_mem'
 
-  publishDir "$params.outDir/calls/scna/facets"
+  publishDir path: "$params.outDir/calls/scna/facets"
 
   input:
   file(filesn) from facets_consensusing.collect()
@@ -443,15 +579,16 @@ process fctcon {
   file(cosmicbed) from fcts_cosmicbed
 
   output:
-  file('*facets_consensus.call.pdf') into completed2_11
+  file('*') into completed2_11
 
   script:
   """
   {
+  OUTID=\$(basename ${params.runDir})
   Rscript --vanilla $callR \
     $dict \
     $cosmicbed \
-    ${params.runID} \
+    \$OUTID \
     $funcR
   } 2>&1 | tee > "facets_cons.log.txt"
   """
@@ -464,13 +601,12 @@ BINS = Channel.from(10, 50, 100, 500)
 
 process qdnasq {
 
-  label '40_120G_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/calls/scna/qdnaseq"
+  publishDir path: "$params.outDir/calls/scna/qdnaseq"
 
   input:
-  set val(sampleID), file(tumourbam), file(tumourbai) from qdnaseqsomaing
-  set val(germlineID), file(germlinebam), file(germlinebai) from gqdnaseqsomaing
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from qdnaseqsomaing
 
   each bin from BINS
   file(qdnascript) from qdnaseqscript
@@ -488,14 +624,13 @@ process qdnasq {
 */
 process msisen {
 
-  label '10_30G_cpu_mem'
+  label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/msisensor"
-  publishDir "$params.outDir/calls/msisensor", pattern: '*.txt'
+  publishDir path: "$params.outDir/$sampleID/msisensor", mode: "copy"
+  publishDir "$params.outDir/calls/msisensor", mode: "copy", pattern: '*.txt'
 
   input:
-  set val(sampleID), file(tumourbam), file(tumourbai) from msisensoring
-  set val(germlineID), file(germlinebam), file(germlinebai) from gmsisensoring
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from msisensoring
   file(ssrs) from msi_ssr
   file(exomebed) from msi_exomebed
 
@@ -524,14 +659,13 @@ completed2_2.subscribe { println "Completed MSIsensor: " + it }
 */
 process mutct2 {
 
-  label '40_120G_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/mutect2"
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
+  publishDir path: "$params.outDir/$sampleID/mutect2", mode: "copy"
+  publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*raw.vcf'
 
   input:
-  set val(sampleID), file(tumourbam), file(tumourbai) from mutect2somaticing
-  set val(germlineID), file(germlinebam), file(germlinebai) from gmutect2somaticing
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mutect2somaticing
   set file(fa), file(fai), file(dict) from mutect2_fasta
   set file(dbsnp), file(dbsnpidx) from mutect2_dbsnp
   set file(gps), file(gpsidx) from mutect2_gps
@@ -601,9 +735,9 @@ process mutct2_contam {
 
   echo true
 
-  label 'full_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/", pattern: '*issue.table'
+  publishDir path: "$params.outDir/", mode: "copy", pattern: '*issue.table'
 
   input:
   set val(sampleID), file(contable) from contamination
@@ -621,14 +755,13 @@ process mutct2_contam {
 */
 process mntstr {
 
-  label '40_120G_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/manta-strelka2"
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
+  publishDir path: "$params.outDir/$sampleID/manta-strelka2"
+  publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*raw.vcf'
 
   input:
-  set val(sampleID), file(tumourbam), file(tumourbai) from mantastrelka2ing
-  set val(germlineID), file(germlinebam), file(germlinebai) from gmantastrelka2ing
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2ing
   set file(fa), file(fai), file(dict) from mantastrelka_fasta
   set file(exomebedgz),file(exomebedgztbi) from mantastrelka_exomebedgz
   file(indelscript) from filterstrelka2iscript
@@ -702,14 +835,13 @@ completed2_4.subscribe { println "Completed Manta-Strelka2: " + it }
 */
 process lancet {
 
-  label '40_120G_cpu_mem'
+  label 'c40_120G_cpu_mem'
 
-  publishDir "$params.outDir/$sampleID/lancet"
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
+  publishDir path: "$params.outDir/$sampleID/lancet"
+  publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*raw.vcf'
 
   input:
-  set val(sampleID), file(tumourbam), file(tumourbai) from lanceting
-  set val(germlineID), file(germlinebam), file(germlinebai) from glanceting
+  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from lanceting
   set file(fa), file(fai), file(dict) from lancet_fasta
   file(exomebed) from lancet_exomebed
   file(filterLancet) from filterlancetscript
@@ -756,9 +888,9 @@ ALLVCFS = lancet_veping
 
 process vepann {
 
-  label '10_30G_cpu_mem'
+  label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*.vcf'
+  publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*.vcf'
 
   input:
   each file(vcf) from ALLVCFS
@@ -813,11 +945,11 @@ vartypes = Channel.from( "snv", "indel" )
 
 process vcfGRa {
 
-  label '20_60G_cpu_mem'
+  label 'c20_60G_cpu_mem'
 
-  publishDir "$params.outDir/calls/variants/pdf", pattern: '*.pdf'
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*.vcf'
-  publishDir "$params.outDir/calls/variants/data", pattern: '*.{RData,tab}'
+  publishDir path: "$params.outDir/calls/variants/pdf", mode: "copy", pattern: '*.pdf'
+  publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*.vcf'
+  publishDir path: "$params.outDir/calls/variants/data", mode: "copy", pattern: '*.{RData,tab}'
 
   input:
   file(rawGRangesvcff) from ALLRAWVEPVCFS.collect()
@@ -831,11 +963,12 @@ process vcfGRa {
 
   script:
   """
+  OUTID=\$(basename ${params.runDir})
   Rscript --vanilla $callR \
     $funcR \
     $germlineID \
     $vartype".pass.vep.vcf" \
-    ${params.runID} \
+    \$OUTID \
     ${params.includeOrder}
   """
 }
@@ -843,23 +976,47 @@ completed3_1.subscribe { println "Completed GRanges Consensus: " + it }
 
 /* 4.0 Run multiQC to finalise report
 */
-fastp_multiqc.mix( mrkdup_multiqc, gtkrcl_multiqc, multimetrics_multiqc ).set { multiqcing }
-
 process mltiQC {
 
-  label '10_30G_cpu_mem'
+  label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir"
+  publishDir path: "$params.runDir/output", mode: "copy", pattern: "*html"
 
   input:
-  file('*') from multiqcing.collect()
+  file('fastp/*') from fastp_multiqc.collect()
+  file('mrkdup/*') from mrkdup_multiqc.collect()
+  file('gtkrcl/*') from gtkrcl_multiqc.collect()
+  file('multimetrics/*') from multimetrics_multiqc.collect()
 
   output:
   file('*') into completedmultiqc
 
   script:
   """
-  multiqc ./ -i ${params.runID} --tag DNA -f -c /usr/local/multiqc_config_BMB.yaml
+  OUTID=\$(basename ${params.runDir})
+  multiqc . -i \$OUTID --tag DNA -f -c /usr/local/multiqc_config_BMB.yaml
   """
 }
 completedmultiqc.subscribe { println "Completed MultiQC" }
+
+/* 5.0 Create output zip with XLSX of all variants per sample
+* include all relevant PDFs, multiqc;
+* this should be the base of final report
+
+process report {
+
+  publishDir path: "$params.runDir/output", mode: "copy", pattern: "*html"
+
+  input:
+
+  output:
+  file('*') into completedreport
+
+  script:
+  """
+  OUTID=\$(basename ${params.runDir})
+  multiqc . -i \$OUTID --tag DNA -f -c /usr/local/multiqc_config_BMB.yaml
+  """
+}
+completedmultiqc.subscribe { println "Completed MultiQC" }
+*/
