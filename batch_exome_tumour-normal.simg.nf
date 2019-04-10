@@ -43,7 +43,7 @@ Channel.fromPath("$params.refDir/exome.bed", type: 'file')
        .toSortedList().into { msi_exomebed; lancet_exomebed }
 Channel.fromPath("$params.refDir/exome.bed.{gz,gz.tbi}", type: 'file')
        .toSortedList().set { mantastrelka_exomebedgz }
-Channel.fromPath("$params.refDir/dbsnp_*.{vcf,vcf.idx}", type: 'file')
+Channel.fromPath("$params.refDir/dbsnp_*.{vcf.gz,vcf.gz.tbi}", type: 'file')
        .toSortedList().into { fcts_dbsnp; gatk_dbsnp; mutect2_dbsnp  }
 Channel.fromPath("$params.refDir/COSMIC_CGC.bed", type: 'file')
        .toSortedList().set { fcts_cosmicbed }
@@ -273,7 +273,7 @@ process gtkrcl {
 
   input:
   set val(caseID), val(type), val(sampleID), file(bam), file(bai) from gatk4recaling
-  set file(fa), file(fai), file(dict) from gatk_fasta
+  set file(dict), file(fa), file(fai) from gatk_fasta
   set file(dbsnp), file(dbsnpidx) from gatk_dbsnp
   file(exomebedintlist) from gatk_exomebedintlist
 
@@ -369,7 +369,7 @@ process mltmet {
 
   input:
   set val(caseID), val(sampleID), file(bam), file(bai) from MULTIALL
-  set file(fa), file(fai), file(dict) from mltmet_fasta
+  set file(dict), file(fa), file(fai) from mltmet_fasta
   file(exomebedintlist) from mltmet_exomebedintlist
 
   output:
@@ -529,7 +529,7 @@ process mutct2 {
 
   input:
   set val(caseID), val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mutect2somatic
-  set file(fa), file(fai), file(dict) from mutect2_fasta
+  set file(dict), file(fa), file(fai) from mutect2_fasta
   set file(dbsnp), file(dbsnpidx) from mutect2_dbsnp
   set file(gps), file(gpsidx) from mutect2_gps
   file(exomebedintlist) from mutect2_exomebedintlist
@@ -623,7 +623,7 @@ process mntstr {
 
   input:
   set val(caseID), val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2
-  set file(fa), file(fai), file(dict) from mantastrelka_fasta
+  set file(dict), file(fa), file(fai) from mantastrelka_fasta
   set file(exomebedgz),file(exomebedgztbi) from mantastrelka_exomebedgz
   file(indelscript) from filterstrelka2iscript
   file(snvscript) from filterstrelka2sscript
@@ -703,7 +703,7 @@ process lancet {
 
   input:
   set val(caseID), val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from lancet
-  set file(fa), file(fai), file(dict) from lancet_fasta
+  set file(dict), file(fa), file(fai) from lancet_fasta
   file(exomebed) from lancet_exomebed
   file(filterLancet) from filterlancetscript
 
@@ -755,7 +755,7 @@ process vepann {
 
   input:
   each file(vcf) from ALLVCFS
-  set file(fa), file(fai), file(dict) from vep_fasta
+  set file(dict), file(fa), file(fai) from vep_fasta
 
   output:
   val("VEP") into completed3_0

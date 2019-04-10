@@ -50,8 +50,16 @@ while(<VCF>){
   my @sp=split(/\t/);
 
   ##header
-  if($_=~m/^#/){
+  if($_=~m/^##/){
     $header.=$_ . "\n";
+    next;
+  }
+
+  ##INFO line
+  if($_=~m/^#CHROM/){
+    my @headr=split(/\t/,$_);
+    my $sc=scalar(@headr)-2;
+    $header.=join("\t", @headr[0..$sc]) . "\t$id\n";
     next;
   }
 
@@ -101,7 +109,7 @@ close OUT;
 ##subroutines
 sub tumourFilter {
   my @info=split(/\:/,$_[$tcol]);
-  my @refalt=split(/\,/,$info[1]);
+  my @refalt=split(/\,/,$info[2]);
   my $tot=$refalt[0]+$refalt[1];
   if(($tot > $dp) && ($refalt[1] > $md)){
     return(1);
@@ -113,7 +121,7 @@ sub tumourFilter {
 
 sub indelFilter {
   my @info=split(/\:/,$_[$tcol]);
-  my @refalt=split(/\,/,$info[1]);
+  my @refalt=split(/\,/,$info[2]);
   my $tot=$refalt[0]+$refalt[1];
   if(($tot > $dp) && ($refalt[1] < $md)){
     return(1);

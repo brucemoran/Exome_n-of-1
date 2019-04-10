@@ -6,8 +6,7 @@ libsLoaded <- lapply(libs,function(lib){suppressMessages(library(lib, character.
 options(scipen=999)
 argsIn <- commandArgs(trailingOnly = TRUE)
 tumourbam <- argsIn[1]
-germlinebam <- argsIn[2]
-bin.size <- argsIn[3]
+bin.size <- argsIn[2]
 bed <- gsub("bam", paste0("cna.", bin.size,"kb.bed"), tumourbam)
 pdf.file <- gsub("bam", paste0("cna.", bin.size,"kb.pdf"), tumourbam)
 rplot.file <- gsub("bam", paste0("cna.", bin.size,"kb.rplot"), tumourbam)
@@ -46,7 +45,7 @@ CNplot <- function(r) {
 
 ##read inputs
 bins <- getBinAnnotations(binSize = as.numeric(bin.size))
-r <- binReadCounts(bins, bamfiles = c(tumourbam, germlinebam), minMapq=20, isSecondaryAlignment=FALSE)
+r <- binReadCounts(bins, bamfiles = tumourbam, minMapq=20, isSecondaryAlignment=FALSE)
 r <- applyFilters(r, residual = F, blacklist = F, mappability = F, bases = 100, chromosomes = "Y")
 r <- estimateCorrection(r)
 r <- correctBins(r, method = "none")

@@ -47,7 +47,7 @@ Channel.fromPath("$params.refDir/exome.bed", type: 'file')
        .flatten().collect().into { msi_exomebed; lancet_exomebed }
 Channel.fromPath("$params.refDir/exome.bed.{gz,gz.tbi}", type: 'file')
        .flatten().collect().set { mantastrelka_exomebedgz }
-Channel.fromPath("$params.refDir/dbsnp_*.{vcf,vcf.tbi}", type: 'file')
+Channel.fromPath("$params.refDir/dbsnp_*.{vcf.gz,vcf.gz.tbi}", type: 'file')
        .flatten().collect().into { fcts_dbsnp; gatk_dbsnp; gatkgerm_dbsnp; mutect2_dbsnp }
 Channel.fromPath("$params.refDir/KG_omni*.{vcf,vcf.tbi}", type: 'file')
        .flatten().collect().set { gatkgerm_omniKg }
@@ -251,7 +251,7 @@ process gtkrcl {
 
   input:
   set val(type), val(sampleID), file(bam), file(bai) from gatk4recaling
-  set file(fa), file(fai), file(dict) from gatk_fasta
+  set file(dict), file(fa), file(fai) from gatk_fasta
   set file(dbsnp), file(dbsnpidx) from gatk_dbsnp
   file(exomebedintlist) from gatk_exomebedintlist
 
@@ -298,7 +298,7 @@ process gatkgerm {
 
   input:
   set val(type), val(sampleID), file(bam) from gatk_germ
-  set file(fa), file(fai), file(dict) from gatkgerm_fasta
+  set file(dict), file(fa), file(fai) from gatkgerm_fasta
   set file(dbsnp), file(dbsnpidx) from gatkgerm_dbsnp
   set file(omni1000g), file(omni1000gidx) from gatkgerm_omniKg
   set file(mills1000g), file(mills1000gidx) from gatkgerm_phase1Kg
@@ -370,7 +370,7 @@ process cpsrgerm {
 
   input:
   set val(sampleID), file(vcf), file(tbi) from germ_vcf
-  set file(fa), file(fai), file(dict) from cpsrgerm_fasta
+  set file(dict), file(fa), file(fai) from cpsrgerm_fasta
   file(exomebedintlist) from gatkgerm_exomebedintlist
 
   output:
@@ -471,14 +471,13 @@ process mltmet {
 
   input:
   set val(sampleID), file(bam), file(bai) from MULTIALL
-  set file(fa), file(fai), file(dict) from mltmet_fasta
+  set file(dict), file(fa), file(fai) from mltmet_fasta
   file(exomebedintlist) from mltmet_exomebedintlist
 
   output:
   val(sampleID) into completed2_0
   file('*') into all2_0
   file('*.txt') into multimetrics_multiqc
-  set file(fa), file(fai) into mutect2_fa
 
   script:
   """
@@ -666,7 +665,7 @@ process mutct2 {
 
   input:
   set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mutect2somaticing
-  set file(fa), file(fai), file(dict) from mutect2_fasta
+  set file(dict), file(fa), file(fai) from mutect2_fasta
   set file(dbsnp), file(dbsnpidx) from mutect2_dbsnp
   set file(gps), file(gpsidx) from mutect2_gps
   file(exomebedintlist) from mutect2_exomebedintlist
@@ -762,7 +761,7 @@ process mntstr {
 
   input:
   set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from mantastrelka2ing
-  set file(fa), file(fai), file(dict) from mantastrelka_fasta
+  set file(dict), file(fa), file(fai) from mantastrelka_fasta
   set file(exomebedgz),file(exomebedgztbi) from mantastrelka_exomebedgz
   file(indelscript) from filterstrelka2iscript
   file(snvscript) from filterstrelka2sscript
