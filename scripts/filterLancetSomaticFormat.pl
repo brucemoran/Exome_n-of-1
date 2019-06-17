@@ -125,6 +125,13 @@ print OUT $header;
 print OUT $indel;
 close OUT;
 
+my $snvindelName=$outName . ".snv_indel.pass.vcf";
+open(OUT,">$snvindelName");
+print OUT $header;
+print OUT $snv;
+print OUT $indel;
+close OUT;
+
 my $rawName=$outName . ".raw.vcf";
 open(OUT,">$rawName");
 print OUT $header;

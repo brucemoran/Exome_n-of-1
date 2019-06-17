@@ -16,7 +16,7 @@ if (params.help) {
   log.info 'This batch processing script only allows any number of tumour-only fastq pairs to be processed'
   log.info ''
   log.info 'Mandatory arguments:'
-  log.info '    --sampleCsv      STRING      CSV format, headers: caseID,sampleID,read1,read2'
+  log.info '    --sampleCsv      STRING      CSV format, headers: caseID,sampleID,meta,read1,read2'
   log.info '    --refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references; still stuck on hg19 for several reasons;()'
   log.info ''
   exit 1
@@ -27,26 +27,41 @@ if (params.help) {
 params.runDir = "$workflow.launchDir"
 params.outDir = "$params.runDir/tumour-only_analysis"
 params.scriptDir = "$params.runDir/scripts"
-params.{params.exomebed} = "$params.refDir/exome.bed"
 
 /* Reference data as params
 */
-//For BWA use fasta as this is base prefix; also supply dict, fai
 params.fasta = Channel.fromPath("$params.refDir/*fasta").getVal()
 params.fai = Channel.fromPath("$params.refDir/*fasta.fai").getVal()
 params.dict = Channel.fromPath("$params.refDir/*dict").getVal()
 
-params.exomebedintlist = Channel.fromPath("$params.refDir/exome.bed.interval_list").getVal()
-params.exomebed = Channel.fromPath("$params.refDir/exome.bed.gz").getVal()
-params.exomebedtbi = Channel.fromPath("$params.refDir/exome.bed.gz.tbi").getVal()
+params.amb = Channel.fromPath("$params.refDir/*fasta.amb").getVal()
+params.ann = Channel.fromPath("$params.refDir/*fasta.ann").getVal()
+params.bwt = Channel.fromPath("$params.refDir/*fasta.bwt").getVal()
+params.pac = Channel.fromPath("$params.refDir/*fasta.pac").getVal()
+params.sa = Channel.fromPath("$params.refDir/*fasta.sa").getVal()
+
+params.exomeintlist = Channel.fromPath("$params.refDir/exome.bed.interval_list").getVal()
+params.exomebed = Channel.fromPath("$params.refDir/exome.bed").getVal()
+params.exomebedgz = Channel.fromPath("$params.refDir/exome.bed.gz").getVal()
+params.exomebedgztbi = Channel.fromPath("$params.refDir/exome.bed.gz.tbi").getVal()
 
 params.dbsnp = Channel.fromPath("$params.refDir/dbsnp*.gz").getVal()
 params.dbsnptbi = Channel.fromPath("$params.refDir/dbsnp*.tbi").getVal()
+params.omni = Channel.fromPath("$params.refDir/KG_omni*.gz").getVal()
+params.otbi = Channel.fromPath("$params.refDir/KG_omni*.gz.tbi").getVal()
+params.kgp1 = Channel.fromPath("$params.refDir/KG_phase1*.gz").getVal()
+params.ktbi = Channel.fromPath("$params.refDir/KG_phase1*.gz.tbi").getVal()
+params.hpmp = Channel.fromPath("$params.refDir/hapmap*.gz").getVal()
+params.htbi = Channel.fromPath("$params.refDir/hapmap*.gz.tbi").getVal()
+params.mlls = Channel.fromPath("$params.refDir/Mills*.gz").getVal()
+params.mtbi = Channel.fromPath("$params.refDir/Mills*.gz.tbi").getVal()
 
 params.cosmic = Channel.fromPath("$params.refDir/COSMIC_CGC.bed").getVal()
 params.ssrs = Channel.fromPath("$params.refDir/msisensor_microsatellites.list").getVal()
 params.gps = Channel.fromPath("$params.refDir/mutect2_GetPileupSummaries.vcf.gz").getVal()
 params.gpstbi = Channel.fromPath("$params.refDir/mutect2_GetPileupSummaries.vcf.gz.tbi").getVal()
+
+Channel.fromPath("$params.refDir/pcgr/", type: 'dir').into { CPSR; PCGR }
 
 /* -1: Install scripts required if not extant
 */
@@ -55,16 +70,13 @@ process scrpts {
   publishDir "$params.scriptDir", mode: "copy", pattern: "*"
 
   output:
-  file('*') into completedmin1
   file('facets_cna.call.R') into facetscallscript
-  file('facets_cna_consensus.call.R') into facetsconcscript
-  file('facets_cna_consensus.func.R') into facetsconfscript
+  set file('facets_cna_consensus.call.R'), file('facets_cna_consensus.func.R') into facetsconscript
   file('filterMuTect2Format.pl') into filtermutect2script
   file('filterPiscesFormat.pl') into filterpiscesscript
-  file('filterStrelka2IndelFormat.pl') into filterstrelka2iscript
-  file('filterStrelka2SNVFormat.pl') into filterstrelka2sscript
   file('MuTect2_contamination.call.R') into mutect2contamscript
   file('variants_GRanges*.R') into variantsGRangesscript
+  file('vcf42.head.txt') into pcgrVcfHead
 
   script:
   """
@@ -77,13 +89,12 @@ process scrpts {
   rm -rf ./somaticVariantConsensus
   """
 }
-completedmin1.subscribe { println "Scripts, images output to: $params.scriptDir" }
 
 /* 0.000: Input using sample.csv
 */
 Channel.fromPath("$params.sampleCsv", type: 'file')
        .splitCsv( header: true )
-       .map { row -> [row.caseID, row.sampleID, file(row.read1), file(row.read2)] }
+       .map { row -> [row.caseID, row.sampleID, row.meta, file(row.read1), file(row.read2)] }
        .set { bbduking }
 
 /* 0.0: Input trimming
@@ -95,11 +106,11 @@ process bbduke {
   publishDir "$params.outDir/$caseID/$sampleID/bbduk", mode: "copy", pattern: "*.txt"
 
   input:
-  set val(caseID), val(sampleID), file(read1), file(read2) from bbduking
+  set val(caseID), val(sampleID), val(meta), file(read1), file(read2) from bbduking
 
   output:
-  set val(caseID), val(sampleID), file(read1), file(read2) into fastpingpre
-  set val(caseID), val(sampleID), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz') into (bwa_memming, fastpingpost)
+  set val(caseID), val(sampleID), val(meta), file(read1), file(read2) into fastpingpre
+  set val(caseID), val(sampleID), val(meta), file('*.bbduk.R1.fastq.gz'), file('*.bbduk.R2.fastq.gz') into (bwa_memming, fastpingpost)
 
   script:
   """
@@ -134,8 +145,8 @@ process fastp {
   publishDir "$params.outDir/$caseID/$sampleID/fastp", mode: "copy", pattern: "*.html"
 
   input:
-  set val(caseID), val(sampleID), file(read1), file(read2) from fastpingpre
-  set val(caseID), val(sampleID), file(read1), file(read2) from fastpingpost
+  set val(caseID), val(sampleID), val(meta), file(read1), file(read2) from fastpingpre
+  set val(caseID), val(sampleID), val(meta), file(read1), file(read2) from fastpingpost
 
   output:
   file('*.json') into fastp_multiqc
@@ -152,14 +163,15 @@ process bwamem {
 
   label 'c20_60G_cpu_mem'
 
-  publishDir "$params.outDir/$caseID/$sampleID/bwa", mode: "copy", pattern: "*[!bam]"
+  publishDir "$params.outDir/$caseID/$sampleID/bwa", mode: "copy", pattern: "*[cram, log.txt]"
 
   input:
-  set val(caseID), val(sampleID), file(read1), file(read2) from bwa_memming
+  set val(caseID), val(sampleID), val(meta), file(read1), file(read2) from bwa_memming
   set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  set file(amb), file(ann), file(bwt), file(pac), file(sa) from Channel.value([params.amb, params.ann, params.bwt, params.pac, params.sa])
 
   output:
-  set val(caseID), val(sampleID), file('*.bam'), file('*.bai') into dup_marking
+  set val(caseID), val(sampleID), val(meta), file('*.bam'), file('*.bai') into dup_marking
 
   script:
   """
@@ -171,13 +183,13 @@ process bwamem {
     -t ${task.cpus} \
     -M \
     -R \$RGLINE \
-    ${params.fasta} \
+    $fasta \
     $read1 $read2 | \
     samtools sort -T "tmp."$sampleID -o $sampleID".sort.bam"
 
   samtools index $sampleID".sort.bam"
 
-  samtools view -hC -T ${params.fasta} $sampleID".sort.bam" > $sampleID".sort.cram"
+  samtools view -hC -T $fasta $sampleID".sort.bam" > $sampleID".sort.cram"
   } 2>&1 | tee > $sampleID".bwa-mem.log.txt"
   """
 }
@@ -192,11 +204,11 @@ process mrkdup {
   publishDir "$params.outDir/$caseID/$sampleID/picard/metrics", mode: "copy", pattern: "*.metrics.txt"
 
   input:
-  set val(caseID), val(sampleID), file(bam), file(bai) from dup_marking
+  set val(caseID), val(sampleID), val(meta), file(bam), file(bai) from dup_marking
 
   output:
   file('*md.metrics.txt') into mrkdup_multiqc
-  set val(caseID), val(sampleID), file('*.md.bam'), file('*.md.bam.bai') into gatk4recaling
+  set val(caseID), val(sampleID), val(meta), file('*.md.bam'), file('*.md.bam.bai') into gatk4recaling
 
   script:
   """
@@ -222,7 +234,6 @@ process mrkdup {
 }
 
 /* 1.2: GATK4 BestPractices
-* as per best practices of GATK4
 */
 process gtkrcl {
 
@@ -231,36 +242,149 @@ process gtkrcl {
   publishDir "$params.outDir/$caseID/$sampleID/gatk4", mode: "copy", pattern: "*.txt"
 
   input:
-  set val(caseID), val(sampleID), file(bam), file(bai) from gatk4recaling
+  set val(caseID), val(sampleID), val(meta), file(bam), file(bai) from gatk4recaling
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  set file(dbsnp), file(dbsnptbi) from Channel.value([params.dbsnp, params.dbsnptbi])
+  file(exomeintlist) from Channel.value(params.exomeintlist)
 
   output:
   file('*.table') into gtkrcl_multiqc
-  set val(caseID), val(sampleID), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into (multimetricing, mutect2ing, facetsing, msisensoring, mantastrelka2ing, piscesing)
+  set val(caseID), val(sampleID), val(meta), file('*.bqsr.bam'), file('*.bqsr.bam.bai') into (gatk_germ, multimetricing, mutect2ing, facetsing, msisensoring, mantastrelka2ing, piscesing)
 
   script:
   """
   {
     gatk BaseRecalibrator \
-    -R ${params.fasta} \
+    -R $fasta \
     -I $bam \
-    --known-sites ${params.dbsnp} \
+    --known-sites $dbsnp \
     --use-original-qualities \
     -O ${sampleID}.recal_data.table \
-    -L ${params.{params.exomebed}intlist}
+    -L $exomeintlist
 
   #ApplyBQSR
   OUTBAM=\$(echo $bam | sed 's/bam/bqsr.bam/')
   gatk ApplyBQSR \
-    -R ${params.fasta} \
+    -R $fasta \
     -I $bam \
     --bqsr-recal-file ${sampleID}.recal_data.table \
     --add-output-sam-program-record \
     --use-original-qualities \
     -O \$OUTBAM \
-    -L ${params.{params.exomebed}intlist}
+    -L $exomeintlist
 
   samtools index \$OUTBAM
   } 2>&1 | tee > $sampleID".GATK4_recal.log.txt"
+  """
+}
+
+/* 1.21: GATK4 Germline
+*/
+process gatkgerm {
+
+  label 'c40_120G_cpu_mem'
+
+  publishDir "$params.outDir/$caseID/$sampleID/gatk4/HC_germline", mode: "copy", pattern: "*"
+
+  input:
+  set val(caseID), val(sampleID), val(meta), file(bam), file(bai) from gatk_germ
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  set file(dbsnp), file(dbsnptbi) from Channel.value([params.dbsnp, params.dbsnptbi])
+  file(exomeintlist) from Channel.value(params.exomeintlist)
+  set file(omni), file(otbi), file(kgp1), file(ktbi), file(hpmp), file(htbi), file(mlls), file(mtbi) from Channel.value([params.omni, params.otbi, params.kgp1, params.ktbi, params.hpmp, params.htbi, params.mlls, params.mtbi])
+
+  output:
+  set val(sampleID), val(meta), file('*recal_filt.vcf.gz'), file('*recal_filt.vcf.gz.tbi') into germ_vcf
+
+  script:
+  """
+  {
+    #HaplotypeCaller
+    INPUTBAM=$bam
+    OUTVCF=\$(echo \$INPUTBAM | sed 's/bam/hc.vcf/')
+    gatk --java-options ${params.full_javamem} HaplotypeCaller \
+      -R $fasta \
+      -I \$INPUTBAM \
+      --dont-use-soft-clipped-bases \
+      --standard-min-confidence-threshold-for-calling 20 \
+      --dbsnp $dbsnp \
+      --native-pair-hmm-threads ${task.cpus} \
+      -O input.recal.vcf \
+      -L $exomeintlist
+
+    gatk --java-options ${params.full_javamem} VariantRecalibrator \
+      -R $fasta \
+      --variant input.recal.vcf \
+      --resource:hapmap,known=false,training=true,truth=true,prior=15.0 $hpmp \
+      --resource:omni,known=false,training=true,truth=false,prior=12.0 $omni \
+      --resource:KG,known=false,training=true,truth=false,prior=10.0 $kgp1 \
+      --resource:dbsnp,known=true,training=false,truth=false,prior=2.0 $dbsnp \
+      -an QD -an DP -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR \
+      --mode SNP \
+      --output "SNP.recal.vcf" \
+      --tranches-file "SNP.tranches" \
+      --rscript-file "SNP.recal.plots.R"
+
+    gatk --java-options ${params.full_javamem} ApplyVQSR \
+      -R $fasta \
+      --variant "input.recal.vcf" \
+      --truth-sensitivity-filter-level 99.0 \
+      --tranches-file "SNP.tranches" \
+      --recal-file "SNP.recal.vcf" \
+      --mode SNP \
+      --output "SNP.recal_filt.vcf"
+
+    ##select all indels
+    gatk --java-options ${params.full_javamem} SelectVariants \
+      -R $fasta \
+      --variant input.recal.vcf \
+      --select-type-to-include INDEL \
+      --output "INDEL.recal.vcf"
+
+    gatk --java-options ${params.full_javamem} MergeVcfs \
+     -I "SNP.recal_filt.vcf" \
+     -I "INDEL.recal.vcf" \
+     -O $sampleID".recal_filt.vcf"
+
+    uniq $sampleID".recal_filt.vcf" > 1; mv 1 $sampleID".recal_filt.vcf"
+    bgzip $sampleID".recal_filt.vcf"; tabix $sampleID".recal_filt.vcf.gz"
+
+  } 2>&1 | tee $sampleID".GATK4_HaplotypeCaller-germline.log.txt"
+
+  """
+}
+
+/* 1.22: CPSR annotation of GATK4 Germline
+*/
+process cpsrreport {
+
+  label 'c40_120G_cpu_mem'
+
+  publishDir "$params.outDir/calls/reports", mode: "copy", pattern: "*.html"
+  publishDir "$params.outDir/calls/variants/cpsr", mode: "copy", pattern: "*[!.html]"
+
+  input:
+  set val(sampleID), val(meta), file(vcf), file(tbi) from germ_vcf
+  each file(cpsr_grch37) from CPSR
+
+  output:
+  file('*') into cpsr_vcfs
+
+  script:
+  """
+  {
+    cpsr.py \
+      --no-docker \
+      --no_vcf_validate \
+      $vcf \
+      $cpsr_grch37 \
+      ./ \
+      grch37 \
+      0 \
+      $cpsr_grch37"/data/grch37/cpsr_configuration_default.toml" \
+      $meta
+
+  } 2>&1 | tee $sampleID".cpsr.log.txt"
   """
 }
 
@@ -273,12 +397,13 @@ process mltmet {
   publishDir "$params.outDir/$caseID/$sampleID/metrics"
 
   input:
-  set val(caseID), val(sampleID), file(bam), file(bai) from multimetricing
+  set val(caseID), val(sampleID), val(meta), file(bam), file(bai) from multimetricing
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  file(exomeintlist) from Channel.value(params.exomeintlist)
 
   output:
   file('*') into all2_0
   file('*.txt') into multimetrics_multiqc
-  set file(fa), file(fai) into mutect2_fa
 
   script:
   """
@@ -287,27 +412,27 @@ process mltmet {
       I=$bam \
       O=$sampleID".hs_metrics.txt" \
       TMP_DIR=./ \
-      R=${params.fasta} \
-      BAIT_INTERVALS=${params.{params.exomebed}intlist} \
-      TARGET_INTERVALS=${params.{params.exomebed}intlist}
+      R=$fasta \
+      BAIT_INTERVALS=$exomeintlist \
+      TARGET_INTERVALS=$exomeintlist
 
     picard-tools CollectAlignmentSummaryMetrics \
       I=$bam \
       O=$sampleID".AlignmentSummaryMetrics.txt" \
       TMP_DIR=./ \
-      R=${params.fasta}
+      R=$fasta
 
     picard-tools CollectMultipleMetrics \
       I=$bam \
       O=$sampleID".CollectMultipleMetrics.txt" \
       TMP_DIR=./ \
-      R=${params.fasta}
+      R=$fasta
 
     picard-tools CollectSequencingArtifactMetrics \
       I=$bam \
       O=$sampleID".artifact_metrics.txt" \
       TMP_DIR=./ \
-      R=${params.fasta}
+      R=$fasta
 
     picard-tools EstimateLibraryComplexity \
       I=$bam \
@@ -324,38 +449,6 @@ process mltmet {
   """
 }
 
-/*2.1: SCNA with facets CSV snp-pileup
-*/
-process fctcsv {
-
-  label 'c8_24G_cpu_mem'
-
-  publishDir "$params.outDir/$caseID/$sampleID/facets"
-
-  input:
-  set val(caseID), val(sampleID), file(bam), file(bai) from facetsing
-  file(facetsR) from facetscallscript
-
-  output:
-  file('*') into facetsoutputR
-
-  script:
-  """
-  CSVFILE=\$(echo $bam | sed 's/bam/facets.r10.csv/')
-
-  {
-    snp-pileup \
-      -r 10 \
-      -p \
-      ${params.dbsnp} \
-      \$CSVFILE \
-      $bam
-
-    Rscript --vanilla ${params.fasta}cetsR \$CSVFILE
-  } 2>&1 | tee > $sampleID".facets_snpp_call.log.txt"
-  """
-}
-
 /* 2.2: MSIsensor
 */
 process msisen {
@@ -366,7 +459,9 @@ process msisen {
   publishDir "$params.outDir/calls/msisensor", pattern: '*.txt'
 
   input:
-  set val(caseID), val(sampleID), file(tumourbam), file(tumourbai) from msisensoring
+  set val(caseID), val(sampleID), val(meta), file(tumourbam), file(tumourbai) from msisensoring
+  file(exomebed) from Channel.value(params.exomebed)
+  file(ssrs) from Channel.value(params.ssrs)
 
   output:
   val(sampleID) into completed2_2
@@ -375,9 +470,9 @@ process msisen {
   script:
   """
   msisensor msi \
-    -d ${params.ssrs} \
+    -d $ssrs \
     -t $tumourbam \
-    -e ${params.exomebed} \
+    -e $exomebed \
     -o $sampleID \
     -b ${task.cpus}
 
@@ -397,14 +492,17 @@ process mutct2 {
   publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
 
   input:
-  set val(caseID), val(sampleID), file(tumourbam), file(tumourbai) from mutect2ing
+  set val(caseID), val(sampleID), val(meta), file(tumourbam), file(tumourbai) from mutect2ing
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  file(exomeintlist) from Channel.value(params.exomeintlist)
+  set file(gps), file(gpstbi) from Channel.value([params.gps, params.gpstbi])
   file(filterpl) from filtermutect2script
 
   output:
   file('*.pass.vcf') into mutect2_veping mode flatten
   file('*.raw.vcf') into mutect2_rawVcf
   file('*') into completedmutect2call
-  set val(sampleID), file('*calculatecontamination.table') into contamination
+  set val(sampleID), val(meta), file('*calculatecontamination.table') into contamination
 
   script:
   """
@@ -412,18 +510,18 @@ process mutct2 {
     gatk --java-options ${params.full_javamem} \
       Mutect2 \
       --native-pair-hmm-threads ${task.cpus} \
-      --reference ${params.fasta} \
+      --reference $fasta \
       --input $tumourbam \
       --tumor-sample $sampleID \
       --output $sampleID".md.recal.mutect2.vcf" \
-      -L ${params.{params.exomebed}intlist}
+      -L $exomeintlist
 
     gatk --java-options ${params.full_javamem} \
       GetPileupSummaries \
       -I $tumourbam \
-      -V ${params.gps} \
+      -V $gps \
       -O $sampleID".getpileupsummaries.table" \
-      -L ${params.exomebedintlist}
+      -L $exomeintlist
 
     gatk CalculateContamination \
       -I $sampleID".getpileupsummaries.table" \
@@ -436,7 +534,7 @@ process mutct2 {
       --output $sampleID".md.recal.mutect2.FilterMutectCalls.vcf" \
       --unique-alt-read-count 3 \
       --variant $sampleID".md.recal.mutect2.vcf" \
-      -L ${params.{params.exomebed}intlist}
+      -L $exomeintlist
 
     perl $filterpl \
       ID=$sampleID \
@@ -458,7 +556,7 @@ process mutct2_contam {
    publishDir "$params.outDir/", pattern: '*issue.table'
 
    input:
-   set val(sampleID), file(contable) from contamination
+   set val(sampleID), val(meta), file(contable) from contamination
    file script from mutect2contamscript
 
    output:
@@ -469,78 +567,6 @@ process mutct2_contam {
    """
 }
 
-/* 2.4: Manta output is a pre-req for Strelka2, so call both here
-*/
-process mntstr {
-
-  label 'c40_120G_cpu_mem'
-
-  publishDir "$params.outDir/$sampleID/manta-strelka2"
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
-
-  input:
-  set val(caseID), val(sampleID), file(tumourbam), file(tumourbai) from mantastrelka2ing
-  file(indelscript) from filterstrelka2iscript
-  file(snvscript) from filterstrelka2sscript
-
-  output:
-  val(sampleID) into completed2_4
-  file('*.pass.vcf') into strelka2_veping mode flatten
-  file('*.raw.vcf') into strelka2_rawVcf
-  file('manta/*') into completedmantacall
-
-  script:
-  """
-  {
-    configManta.py \
-      --tumourBam=$tumourbam \
-      --referenceFasta=${params.fasta} \
-      --runDir=manta
-
-    manta/runWorkflow.py -m local
-
-    configureStrelkaSomaticWorkflow.py \
-      --exome \
-      --referenceFasta=${params.fasta} \
-      --callRegions ${params.exomebed}gz \
-      --indelCandidates=manta/results/variants/candidateSmallIndels.vcf.gz \
-      --tumorBam=$tumourbam \
-      --runDir=strelka2
-
-    strelka2/runWorkflow.py -m local
-
-    TUMOURSNVVCF=\$(echo $tumourbam | sed 's/bam/strelka2.snv.vcf/')
-    gunzip -c strelka2/results/variants/somatic.snvs.vcf.gz | \
-    perl -ane 'if(\$F[0]=~m/^#/){if(\$_=~m/^#CHROM/){
-        \$_=~s/TUMOR/$sampleID/;
-        print \$_;next;}
-        else{print \$_;next;}
-      }
-      else{print \$_;}' > \$TUMOURSNVVCF
-
-    perl $snvscript \
-     ID=$sampleID \
-     DP=14 \
-     MD=2 \
-     VCF=\$TUMOURSNVVCF
-
-    TUMOURINDELVCF=\$(echo $tumourbam | sed 's/bam/strelka2.indel.vcf/')
-    gunzip -c strelka2/results/variants/somatic.indels.vcf.gz | \
-    perl -ane 'if(\$F[0]=~m/^#/){if(\$_=~m/^#CHROM/){
-        \$_=~s/TUMOR/$sampleID/;
-        print \$_;next;}
-        else{print \$_;next;}}
-      else{print \$_;}' > \$TUMOURINDELVCF
-
-    perl $indelscript \
-      ID=$sampleID \
-      DP=14 \
-      MD=2 \
-      VCF=\$TUMOURINDELVCF
-
-  } 2>&1 | tee > $sampleID".manta-strelka2.log.txt"
-  """
-}
 
 /* 2.5: Pisces
 */
@@ -552,13 +578,16 @@ process pisces {
   publishDir "$params.outDir/calls/variants/vcf", pattern: '*raw.vcf'
 
   input:
-  set val(caseID), val(sampleID), file(tumourbam), file(tumourbai) from piscesing
+  set val(caseID), val(sampleID), val(meta), file(tumourbam), file(tumourbai) from piscesing
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
+  file(exomeintlist) from Channel.value(params.exomeintlist)
   file(filterpl) from filterpiscesscript
 
   output:
   file('*.pass.vcf') into pisces_veping mode flatten
   file('*.raw.vcf') into pisces_rawVcf
   file('*') into completedpiscescall
+  file('*.sampleIDmeta.csv') into pcgrsamples
 
   script:
   """
@@ -569,7 +598,7 @@ process pisces {
     dotnet /app/Pisces_5.2.9.122/Pisces.dll \
       --bam $tumourbam \
       --genomepaths ./ \
-      --intervalpaths ${params.exomebedintlist} \
+      --intervalpaths $exomeintlist \
       --filterduplicates true \
       --onlyuseproperpairs true \
       --mindepth 3 \
@@ -579,10 +608,11 @@ process pisces {
 
     perl $filterpl \
       ID=$sampleID \
-      DP=14
+      DP=14 \
       MD=2 \
       VCF=\$TUMOURVCF
 
+    echo "$sampleID,$meta" > $sampleID".sampleIDmeta.csv"
   } 2>&1 | tee > $sampleID".pisces.log.txt"
 
   """
@@ -592,25 +622,26 @@ process pisces {
 */
 ALLVCFS = pisces_veping
           .mix( mutect2_veping )
-          .mix( strelka2_veping )
 
 process vepann {
 
   label 'c10_30G_cpu_mem'
 
-  publishDir "$params.outDir/calls/variants/vcf", pattern: '*.vcf'
+  publishDir "$params.outDir/calls/variants/vcf", pattern: '*.[vcf,tsv]'
 
   input:
   each file(vcf) from ALLVCFS
+  set file(fasta), file(fai), file(dict) from Channel.value([params.fasta, params.fai, params.dict])
 
   output:
   file('*.vcf') into annoVcfs
-  file('*.vcf') into (completedvep, runGRanges)
+  file('*.tsv') into annoTsvs
+  file('*.vcf') into runGRanges
 
   script:
   """
   VCFANNO=\$(echo $vcf | sed "s/.vcf/.vep.vcf/")
-
+  TSVANNO=\$(echo $vcf | sed "s/.vcf/.vep.tsv/")
   vep --dir_cache /usr/local/ensembl-vep/cache \
     --offline \
     --assembly GRCh37 \
@@ -627,12 +658,15 @@ process vepann {
     --input_file $vcf \
     --output_file \$VCFANNO \
     --format "vcf" \
-    --fasta ${params.fasta} \
+    --fasta $fasta \
     --hgvs \
     --canonical \
     --ccds \
     --force_overwrite \
     --verbose
+
+  cat \$VCFANNO | perl -ane '@s=split(/\\|/,\$F[7]);
+    print "\$F[0]:\$F[1]_\$F[3]>\$F[4]\\t\$s[1]\\t\$s[2]\\t\$s[3]\\t\$s[4]\\t\$s[45]\\t\$s[64]\\t\$F[9]\\n";' > \$TSVANNO
   """
 }
 
@@ -644,9 +678,8 @@ process vepann {
 ALLRAWVEPVCFS = runGRanges
              .mix(pisces_rawVcf)
              .mix(mutect2_rawVcf)
-             .mix(strelka2_rawVcf)
 
-vartypes = Channel.from( "snv", "indel" )
+vartypes = Channel.from( "snv" )
 
 process vcfGRa {
 
@@ -654,15 +687,17 @@ process vcfGRa {
 
   publishDir "$params.outDir/calls/variants/pdf", pattern: '*.pdf'
   publishDir "$params.outDir/calls/variants/vcf", pattern: '*.vcf'
-  publishDir "$params.outDir/calls/variants/data", pattern: '*.{RData,tab}'
+  publishDir "$params.outDir/calls/variants/data", pattern: '*.[*RData,*tab]'
 
   input:
   file(rawGRangesvcff) from ALLRAWVEPVCFS.collect()
   each vartype from vartypes
   set file(callR), file(funcR) from variantsGRangesscript
+  file(vcfHead) from pcgrVcfHead
 
   output:
   val(vartype) into completed3_1
+  file('*.ALL.pcgr.all.tab.vcf') into pcgrvcfs
   file('*') into completedvcfGRangesConsensus
 
   script:
@@ -670,10 +705,57 @@ process vcfGRa {
   OUTID=\$(basename ${params.runDir})
   Rscript --vanilla $callR \
     $funcR \
-    "NULL" \
+    NULL \
     $vartype".pass.vep.vcf" \
     \$OUTID \
     ${params.includeOrder}
+
+  ##header VCF
+  for VCF in *.pcgr.all.tab.vcf; do
+    cat $vcfHead > 1;
+    cat \$VCF >> 1;
+    mv 1 \$VCF;
+  done
+  """
+}
+
+
+/* 3.2 PCGR report
+* take all mutations in consensus.tab from pass.vcfs into single VCF for PCGR
+*/
+process pcgrreport {
+
+  label 'c20_60G_cpu_mem'
+
+  publishDir "$params.outDir/calls/reports", mode: "copy", pattern: "*html"
+  publishDir "$params.outDir/calls/variants/pcgr", mode: "copy", pattern: "*[!.html]"
+
+  input:
+  file(vcf) from pcgrvcfs
+  each file(pcgr_grch37) from PCGR
+  each file(pcgrmeta) from pcgrsamples
+
+  output:
+  file('*') into completedPCGR
+
+  script:
+  """
+  {
+    sed 's/vcf_tumor_only = false/vcf_tumor_only = true/' $pcgr_grch37/data/grch37/pcgr_configuration_default.toml > pcgr_TO.toml
+
+    SAMPLEID=\$(cut -d "," -f 1 $pcgrmeta | cut -d "." -f 1)
+    VCF=\$(ls | grep \$SAMPLEID | grep pcgr.all.tab.vcf)
+    METAID=\$(cut -d "," -f 2 $pcgrmeta)
+      pcgr.py $pcgr_grch37 \
+      ./ \
+      grch37 \
+      pcgr_TO.toml \
+      \$METAID \
+      --input_vcf \$VCF \
+      --no-docker \
+      --force_overwrite \
+      --no_vcf_validate
+  } 2>&1 | tee pcgr.log.txt
   """
 }
 

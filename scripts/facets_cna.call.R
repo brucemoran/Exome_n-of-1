@@ -5,6 +5,7 @@ inputCSV <- argsIn[1]
 tumour <- strsplit(inputCSV,"\\.")[[1]][1]
 set.seed(1234)
 snpmat <- readSnpMatrix(inputCSV)
+
 pps <- preProcSample(snpmat)
 oo <- procSample(pps)
 fit <- emcncf(oo)

@@ -19,9 +19,9 @@ use File::Basename;
 ##make Germline, Tumour subs, input and done
 ##print to FILTER new PASS_BMFILT
 
-my ($no,$id,$dp,$md,$vcf)="";
-if(scalar(@ARGV)!=4){
-  print "Require 4 inputs:\n-ID=Tumour ID (VCF must be somatic, 2 sample, Tumour ID -> other is Germline)\n-DP=Required depth Tumour and Germline (>=)\n-MD=Required min depth of ALT in Tumour (>=)\n-VCF=VCF input file (in current dir or full path)\n";
+my ($no,$id,$dp,$md,$vcf,$tonly)="";
+if(scalar(@ARGV)<4){
+  print "Require at least 4 inputs:\n-ID=Tumour ID (VCF must be somatic, 2 sample, Tumour ID -> other is Germline)\n-DP=Required depth Tumour and Germline (>=)\n-MD=Required min depth of ALT in Tumour (>=)\n-VCF=VCF input file (in current dir or full path)\n-TO=Tumour-only pipeline, no germline";
   exit;
 }
 
@@ -31,7 +31,12 @@ for(my $i=0;$i<@ARGV;$i++){
   if($ARGV[$i]=~m/MD/){($no,$md)=split(/\=/,$ARGV[$i]);}
   if($ARGV[$i]=~m/VCF/){($no,$vcf)=split(/\=/,$ARGV[$i]);}
 }
-
+if(scalar(@ARGV)==5){
+  $tonly=1;
+}
+if(scalar(@ARGV)==4){
+  $tonly=0;
+}
 if($vcf!~m/\//){
   my $dir=getcwd();
   my $vcf1=$dir . "/" . $vcf;
@@ -41,6 +46,9 @@ if($vcf!~m/\//){
 ##open VCF, run filter
 my $tcol=-1;
 my $gcol=-2;
+if($tonly==0){
+  $gcol=$tcol;
+}
 my $header="";
 my $snv="";
 my $indel="";
@@ -74,17 +82,17 @@ while(<VCF>){
     $raw.=$_ . "\n";
     if(($sp[6] eq "PASS") || ($sp[6] eq ".")){
       my $tflag=&tumourFilter(@sp);
-      my $gflag=&germlineFilter(@sp);
-      my $iflag=&indelgermlineFilter(@sp);
+      # my $gflag=&germlineFilter(@sp);
+      # my $iflag=&indelgermlineFilter(@sp);
       my $siflag=&indelOrSNV(@sp);
       if($siflag==0){
-        if(($tflag == 1) && ($gflag == 1)){
+        if($tflag == 1){
           $snv.=$_ . "\n";
           next;
         }
       }
       else{
-        if(($tflag == 1) && ($iflag == 1)){
+        if($tflag == 1){
           $indel.=$_ . "\n";
           next;
         }
@@ -104,6 +112,13 @@ close OUT;
 my $indelName=$outName . ".indel.pass.vcf";
 open(OUT,">$indelName");
 print OUT $header;
+print OUT $indel;
+close OUT;
+
+my $snvindelName=$outName . ".snv_indel.pass.vcf";
+open(OUT,">$snvindelName");
+print OUT $header;
+print OUT $snv;
 print OUT $indel;
 close OUT;
 
