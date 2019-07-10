@@ -4,9 +4,9 @@ params.help = ""
 
 if (params.help) {
   log.info ''
-  log.info '--------------------------------------------------'
+  log.info '----------------------------------------------'
   log.info 'NEXTFLOW BAM QC, TRIM, ALIGN, SOMATIC SNV, CNA'
-  log.info '--------------------------------------------------'
+  log.info '----------------------------------------------'
   log.info ''
   log.info 'Usage: '
   log.info 'nextflow run exome_n-of-1.simg.nf \
@@ -15,57 +15,21 @@ if (params.help) {
               --includeOrder "tumour_A,tumour_B"'
   log.info ''
   log.info 'Mandatory arguments:'
-  log.info '    --sampleCsv      STRING      CSV format, headers: type ("germline" or "somatic"),sampleID,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz '
-  log.info '    --refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references; still; stuck on GRCh37 for several reasons=('
+  log.info '    --sampleCsv      STRING      CSV format, headers: type (either "germline" or "somatic"),sampleID,/path/to/read1.fastq.gz,/path/to/read2.fastq.gz '
+  log.info '    --refDir      STRING      dir in which reference data and required indices held; recommended to run associated reference creation NextFlow, DNAseq_references; stuck on GRCh37 for several reasons=('
   log.info '    --sampleMeta      STRING      CSV format, headers: sampleID,meta; use meta for naming in PCGR, CPSR report; sampleID matches from sampleCsv [[[replace with meta entry for sampleCsv]]]'
   log.info ''
-  log.info 'Optional argument:'
-  log.info '    --includeOrder      STRING      in final plots, use this ordering of samples (if multiple somatic); comma-separated, no spaces'
+  log.info 'Optional arguments:'
+  log.info '    --includeOrder      STRING      in final plots, use this ordering of samples (if multiple somatic samples); comma-separated, no spaces'
+  log.info '    --germline      STRING      run HaplotypeCaller on germline sample and annotate with CPSR'
   log.info ''
   exit 1
 }
 
 /* -2: Global Variables
 */
-params.runDir = "$workflow.launchDir"
-params.outDir = "$params.runDir/analysis"
-params.scriptDir = "$params.runDir/scripts"
-
-/* Reference data as params
-*/
-params.fasta = Channel.fromPath("$params.refDir/*fasta").getVal()
-params.fai = Channel.fromPath("$params.refDir/*fasta.fai").getVal()
-params.dict = Channel.fromPath("$params.refDir/*dict").getVal()
-
-params.amb = Channel.fromPath("$params.refDir/*fasta.amb").getVal()
-params.ann = Channel.fromPath("$params.refDir/*fasta.ann").getVal()
-params.bwt = Channel.fromPath("$params.refDir/*fasta.bwt").getVal()
-params.pac = Channel.fromPath("$params.refDir/*fasta.pac").getVal()
-params.sa = Channel.fromPath("$params.refDir/*fasta.sa").getVal()
-
-params.twobit = Channel.fromPath("$params.refDir/*fasta.2bit").getVal()
-
-params.exomeintlist = Channel.fromPath("$params.refDir/exome.bed.interval_list").getVal()
-params.exomebed = Channel.fromPath("$params.refDir/exome.bed").getVal()
-params.exomebedgz = Channel.fromPath("$params.refDir/exome.bed.gz").getVal()
-params.exomebedgztbi = Channel.fromPath("$params.refDir/exome.bed.gz.tbi").getVal()
-
-params.dbsnp = Channel.fromPath("$params.refDir/dbsnp*.gz").getVal()
-params.dbsnptbi = Channel.fromPath("$params.refDir/dbsnp*.tbi").getVal()
-params.omni = Channel.fromPath("$params.refDir/KG_omni*.gz").getVal()
-params.otbi = Channel.fromPath("$params.refDir/KG_omni*.gz.tbi").getVal()
-params.kgp1 = Channel.fromPath("$params.refDir/KG_phase1*.gz").getVal()
-params.ktbi = Channel.fromPath("$params.refDir/KG_phase1*.gz.tbi").getVal()
-params.hpmp = Channel.fromPath("$params.refDir/hapmap*.gz").getVal()
-params.htbi = Channel.fromPath("$params.refDir/hapmap*.gz.tbi").getVal()
-
-params.cosmic = Channel.fromPath("$params.refDir/COSMIC_CGC.bed").getVal()
-params.ssrs = Channel.fromPath("$params.refDir/msisensor_microsatellites.list").getVal()
-params.gps = Channel.fromPath("$params.refDir/mutect2_GetPileupSummaries.vcf.gz").getVal()
-params.gpstbi = Channel.fromPath("$params.refDir/mutect2_GetPileupSummaries.vcf.gz.tbi").getVal()
-
-Channel.fromPath("$params.refDir/pcgr/", type: 'dir').into { CPSR; PCGR }
-params.cpsrpcgr = Channel.fromPath("$params.sampleMeta").getVal()
+params.outDir = "$workflow.launchDir/analysis"
+params.scriptDir = "$workflow.launchDir/scripts"
 
 /* -1: Install scripts required if not extant
 */
@@ -108,9 +72,7 @@ Channel.fromPath("$params.sampleCsv", type: 'file')
 
 /* 0.0: Input trimming
 */
-process bbduke {
-
-  label 'c10_30G_cpu_mem'
+process bbduk {
 
   publishDir path: "$params.outDir/$sampleID/bbduk", mode: "copy", pattern: "*.txt"
 
@@ -151,8 +113,6 @@ process bbduke {
 */
 process fastp {
 
-  label 'c8_24G_cpu_mem'
-
   publishDir "$params.outDir/$sampleID/fastp", mode: "copy", pattern: "*.html"
 
   input:
@@ -174,8 +134,6 @@ process fastp {
 */
 process fastqc {
 
-  label 'c8_24G_cpu_mem'
-
   publishDir "$params.outDir/$sampleID/fastqc", mode: "copy", pattern: "*.html"
 
   input:
@@ -194,8 +152,8 @@ process fastqc {
 /* 1.0: Input alignment
 */
 process bwamem {
+
   cache 'deep'
-  label 'c20_60G_cpu_mem'
 
   publishDir path: "$params.outDir/$sampleID/bwa", mode: "copy", pattern: "*.log.txt"
 
@@ -233,8 +191,6 @@ process bwamem {
 */
 process cram {
 
-  label 'c8_24G_cpu_mem'
-
   publishDir path: "$params.outDir/$sampleID/bwa", mode: "copy", pattern: "*.cra*"
 
   input:
@@ -254,8 +210,6 @@ process cram {
 /* 1.1: MarkDuplicates
 */
 process mrkdup {
-
-  label 'c20_60G_cpu_mem'
 
   publishDir path: "$params.outDir/$sampleID/picard/markdup", mode: "copy", pattern: "*[!.metrics.txt]"
   publishDir path: "$params.outDir/$sampleID/picard/metrics", mode: "copy", pattern: "*.metrics.txt"
@@ -598,7 +552,7 @@ process fctcon {
   script:
   """
   {
-  OUTID=\$(basename ${params.runDir})
+  OUTID=\$(basename ${workflow.launchDir})
   Rscript --vanilla $callR \
     $dict \
     $cosmic \
@@ -608,39 +562,7 @@ process fctcon {
   """
 }
 
-/* 2.2: MSIsensor
-*/
-process msisen {
-
-  label 'c10_30G_cpu_mem'
-
-  publishDir "$params.outDir/$sampleID/msisensor", mode: "copy"
-  publishDir "$params.outDir/calls/msisensor", mode: "copy", pattern: '*.txt'
-
-  input:
-  set val(sampleID), file(tumourbam), file(tumourbai), val(germlineID), file(germlinebam), file(germlinebai) from msisensoring
-  file(exomebed) from Channel.value(params.exomebed)
-  file(ssrs) from Channel.value(params.ssrs)
-
-  output:
-  file('*') into msisensoroutput
-
-  script:
-  """
-  msisensor msi \
-    -d $ssrs \
-    -n $germlinebam \
-    -t $tumourbam \
-    -e $exomebed \
-    -o $sampleID \
-    -b ${task.cpus}
-
-  MSI=\$( tail -n1 $sampleID | cut -f 3)
-  mv $sampleID $sampleID".MSI-pc_"\$MSI".txt"
-  """
-}
-
-/* 2.3: MuTect2
+/* 2.2: MuTect2
 * NB --germline-resource dollar-sign{dbsnp} removed as no AF causing error
 */
 process mutct2 {
@@ -834,7 +756,8 @@ process mntstrmerge {
 */
 process lancet {
 
-  label 'c20_60G_cpu_mem'
+  process.container = "library://bruce.moran/default/variant_callers:lancet.centos7"
+  singularity.enabled = true
 
   publishDir path: "$params.outDir/$sampleID/lancet"
   publishDir path: "$params.outDir/calls/variants/vcf", mode: "copy", pattern: '*raw.vcf'
@@ -956,7 +879,7 @@ process vcfGRa {
 
   script:
   """
-  OUTID=\$(basename ${params.runDir})
+  OUTID=\$(basename ${workflow.launchDir})
   Rscript --vanilla $callR \
     $funcR \
     $vcfGermlineID \
@@ -1018,34 +941,6 @@ process pcgrreport {
   """
 }
 
-/* 3.2 Somatic Mutation Signatures
-*/
-// process somamutsig {
-//
-//   label 'c10_30G_cpu_mem'
-//
-//   publishDir path: "$params.runDir/analysis/calls/variants/mutation_signatures", mode: "copy"
-//
-//   input:
-//   file(mutsigs) from somamutsigs.collect()
-//   file(mutsigRscript) from somaticsignaturesscript
-//   file(fa2bit) from Channel.value([params.twobit])
-//
-//   output:
-//   file('*') into completedsomamutsig
-//
-//   script:
-//   """
-//   ls | grep consensus.tab | grep snv | cut -d "." -f1 | while read SAMPLE; do
-//     echo -e "##fileformat=VCFv4.2\\n#CHROM\\tPOS\\tID\\tREF\\tALT\\tQUAL\\tFILTER\\tINFO\\tFORMAT\\t\$SAMPLE" > \$SAMPLE".snv.pass.ALL.svc.vcf"
-//     FILE=\$(ls | grep \$SAMPLE | grep -v pass.ALL.vcf)
-//     tail -n+2 \$FILE | perl -ane '@v=split(//,\$F[11]); if(\$v[-1]=~m/A|C|T|G/){ print "\$F[0]\\t\$F[1]\\t.\\t\$v[-3]\\t\$v[-1]\\t,\\tPASS\\t.\\tGT:AD:AF:DP\\t0/1:\$F[5],\$F[6]:\$F[7]:\$F[5]\\n";}' | sort -V >> \$SAMPLE".snv.pass.ALL.svc.vcf"
-//   done
-//
-//   Rscript --vanilla $mutsigRscript "snv.pass.ALL.svc.vcf" $fa2bit
-//   """
-// }
-
 /* 4.0 Run multiQC to finalise report
 */
 process mltiQC {
@@ -1066,7 +961,7 @@ process mltiQC {
 
   script:
   """
-  OUTID=\$(basename ${params.runDir})
+  OUTID=\$(basename ${workflow.launchDir})
   multiqc . -i \$OUTID --tag DNA -f -c /usr/local/multiqc_config_BMB.yaml
   """
 }
